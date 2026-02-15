@@ -15,62 +15,62 @@ SOURCES += \
 HEADERS += \
     mainwindow.h
 
-FORMS += \
-    mainwindow.ui
 
-# --- VTK 8.2 ---
+# --- VTK 8.2 (MSVC 2019-compatible x64 build) ---
+ VTK_INSTALL = C:/Users/aswin/Projects/VTK8.2/install
 
-VTK_PATH = $$PWD/VTK8.2/Release
+ INCLUDEPATH += $$VTK_INSTALL/include/vtk-8.2
+ DEPENDPATH  += $$VTK_INSTALL/include/vtk-8.2
+ QMAKE_LIBDIR += $$VTK_INSTALL/lib
 
-INCLUDEPATH += $$VTK_PATH/include/vtk-8.2
-DEPENDPATH += $$VTK_PATH/include/vtk-8.2
-QMAKE_LIBDIR += $$VTK_PATH/lib
+ LIBS += \
+     -lvtkCommonCore-8.2 \
+     -lvtkCommonDataModel-8.2 \
+     -lvtkCommonExecutionModel-8.2 \
+     -lvtkCommonMath-8.2 \
+     -lvtkCommonTransforms-8.2 \
+     -lvtkCommonMisc-8.2 \
+     -lvtkRenderingCore-8.2 \
+     -lvtkRenderingOpenGL2-8.2 \
+     -lvtkRenderingFreeType-8.2 \
+     -lvtkInteractionStyle-8.2 \
+     -lvtkGUISupportQt-8.2 \
+     -lvtkFiltersSources-8.2 \
+     -lvtkIOImage-8.2 \
+     -lvtkIOCore-8.2
+
+ # --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
+ VTKDICOM_INSTALL = C:/Users/aswin/Projects/VTKDicom/install
+
+ INCLUDEPATH += $$VTKDICOM_INSTALL/include
+ QMAKE_LIBDIR += $$VTKDICOM_INSTALL/lib
+
+ LIBS += -lvtkDICOM-8.2.0
 
 
-LIBS += \
-    -lvtkCommonCore-8.2 \
-    -lvtkCommonDataModel-8.2 \
-    -lvtkCommonExecutionModel-8.2 \
-    -lvtkCommonMath-8.2 \
-    -lvtkCommonTransforms-8.2 \
-    -lvtkRenderingCore-8.2 \
-    -lvtkRenderingOpenGL2-8.2 \
-    -lvtkInteractionStyle-8.2 \
-    -lvtkGUISupportQt-8.2 \
-    -lvtkFiltersSources-8.2
+# # --- GDCM ---
+# GDCM_PATH = $$PWD/../GDCM
 
+# INCLUDEPATH += $$GDCM_PATH/include/gdcm-2.6
+# QMAKE_LIBDIR += $$GDCM_PATH/lib
 
-# --- vtkDICOM ---
-VTKDICOM_PATH = $$PWD/VTKDicom/Release
-INCLUDEPATH += $$VTKDICOM_PATH/include
-QMAKE_LIBDIR += $$VTKDICOM_PATH/lib
-
-LIBS += -lvtkDICOM-8.2.0
-
-
-# --- GDCM ---
-GDCM_PATH = $$PWD/GDCM
-
-INCLUDEPATH += $$GDCM_PATH/include/gdcm-2.6
-QMAKE_LIBDIR += $$GDCM_PATH/lib
-
-LIBS += \
-    -lvtkgdcm \
-    -lgdcmMSFF \
-    -lgdcmIOD \
-    -lgdcmDSED \
-    -lgdcmDICT \
-    -lgdcmCommon \
-    -lgdcmCharls \
-    -lgdcmjpeg8 \
-    -lgdcmjpeg12 \
-    -lgdcmjpeg16 \
-    -lgdcmMEXD \
-    -lgdcmexpat \
-    -lgdcmgetopt \
-    -lgdcmopenjpeg \
-    -lgdcmzlib \
-    -lsocketxx \
+# LIBS += \
+#     -lvtkgdcm \
+#     -lgdcmMSFF \
+#     -lgdcmIOD \
+#     -lgdcmDSED \
+#     -lgdcmDICT \
+#     -lgdcmCommon \
+#     -lgdcmCharls \
+#     -lgdcmjpeg8 \
+#     -lgdcmjpeg12 \
+#     -lgdcmjpeg16 \
+#     -lgdcmMEXD \
+#     -lgdcmexpat \
+#     -lgdcmgetopt \
+#     -lgdcmopenjpeg \
+#     -lgdcmzlib \
+#     -lsocketxx \
 
 
 

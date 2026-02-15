@@ -1,0 +1,20 @@
+# Build directories
+build/
+build-*/
+
+# Qt Creator user files
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+
+# Qt Creator config folders
+.qtcreator/
+.qtcreator.ini
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+

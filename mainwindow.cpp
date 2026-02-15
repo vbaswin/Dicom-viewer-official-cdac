@@ -1,6 +1,8 @@
 #include "mainwindow.h"
-#include <QVTKOpenGLNativeWidget.h>
 
+#include "vtkConeSource.h"
+#include "vtkPolyDataMapper.h"
+#include "vtkProperty.h"
 // #include "ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -12,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(1024, 768);
 
     setupVTKWidget();
-    setupTestCone();
+     setupTestCone();
 }
 
 MainWindow::~MainWindow()
@@ -25,14 +27,10 @@ void MainWindow::setupVTKWidget() {
     setCentralWidget(m_vtkWidget);
 
 
-    vtkNew<vtkGenericOpenGlRenderWindow> renderWindow;
-    m_vtkWidget->setRenderWindow(renderWindow);
+    m_vtkWidget->SetRenderWindow(m_renderWindow);
 
-    vtkNew<vtkRenderer> renderer;
-    renderer->SetBackground(0.1, 0.1,0.1);
-    renderWindow->AddRenderer(renderer);
-
-    m_renderer = renderer;
+    m_renderer->SetBackground(0.1, 0.1,0.1);
+    m_renderWindow->AddRenderer(m_renderer);
 }
 
 void MainWindow::setupTestCone() {
@@ -47,7 +45,7 @@ void MainWindow::setupTestCone() {
 
     vtkNew<vtkActor> actor;
     actor->SetMapper(mapper);
-    actor->GetProperty()->Setjcolor(0.2, 0.6, 0.9);
+    actor->GetProperty()->SetColor(0.2, 0.6, 0.9);
 
     m_renderer->AddActor(actor);
     m_renderer->ResetCamera();
