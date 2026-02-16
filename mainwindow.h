@@ -8,6 +8,8 @@
 #include "vtkRenderer.h"
 #include "vtkActor.h"
 #include "vtkNew.h"
+#include <QPushButton>
+#include <vtkCallbackCommand.h>
 
 
 
@@ -25,6 +27,8 @@ VTK_MODULE_INIT(vtkRenderingFreeType);
 class vtkImageViewer2;
 class vtkDICOMReader;
 class vtkRenderWindowInteractor;
+class SphereInteractorStyle;
+
 
 // Volume rendering (CRITICAL)
 // VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
@@ -43,11 +47,13 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void loadDicomDirectory(const QString &directoryPath);
+private slots:
+    void toggleAnnotationMode(bool enabled);
 private:
     void setupVTKWidget();
+    void setupToolBar();
 
-    /// @brief Updates the window title with slice position info
-    // void updateSliceInfo();
+
 
     // --- UI Components ---
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;  // Owned by Qt parent hierarchy
@@ -61,6 +67,10 @@ private:
     // state
     int m_minSlice = 0;
     int m_maxSlice = 0;
+
+    vtkSmartPointer<SphereInteractorStyle> m_sphereStyle;
+
+    QPushButton *m_annotateButton = nullptr;
 
 };
 #endif // MAINWINDOW_H

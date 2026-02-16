@@ -1,4 +1,5 @@
  #include "mainwindow.h"
+#include "SphereInteractorStyle.h"
 
 // VTK DICOM reader — from vtkDICOM 0.8.13 library.
 // The reader itself handles slice sorting by ImagePositionPatient,
@@ -14,6 +15,12 @@
 #include "vtkInteractorStyleImage.h"
 #include "vtkCallbackCommand.h"
 
+
+
+#include "vtkSphereWidget.h"
+#include "vtkCoordinate.h"
+#include "vtkProperty.h"
+
 // VTK utilities
 #include "vtkStringArray.h"
 #include "vtkRenderer.h"
@@ -22,6 +29,7 @@
 #include "vtkDICOMDirectory.h"
 
 #include <QDebug>
+#include <QToolBar>
 #include <QDir>
 #include <QStringList>
 
@@ -70,6 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("DICOM Viewer");
     resize(1024, 768);
 
+    setupToolBar();
     setupVTKWidget();
 
     // Load the DICOM dataset. The path is injected at the call site —
@@ -79,6 +88,15 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() = default;
 
+void MainWindow::setupToolBar() {
+    QToolBar *toolbar = addToolBar("Tools");
+
+    m_annotateButton = new QPushButton("Mark Point", this);
+    m_annotateButton->setCheckable(true);
+    connect(m_annotateButton, &QPushButton::toggled,
+            this, &MainWindow::toggleAnnotationMode);
+    toolbar->addWidget(m_annotateButton);
+}
 void MainWindow::setupVTKWidget()
 {
     // QVTKOpenGLNativeWidget is the modern VTK-Qt bridge (VTK 8.1+).
@@ -88,6 +106,13 @@ void MainWindow::setupVTKWidget()
 
     m_vtkWidget->SetRenderWindow(m_renderWindow);
     m_renderWindow->GetInteractor()->Initialize();
+}
+
+void MainWindow::toggleAnnotationMode(bool enabled)
+{
+    if (m_sphereStyle) {
+        m_sphereStyle->SetAnnotationMode(enabled);
+    }
 }
 
 void MainWindow::loadDicomDirectory(const QString &directoryPath)
@@ -159,6 +184,18 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     // Use the same render window that our Qt widget owns.
     m_imageViewer->SetRenderWindow(m_renderWindow);
     m_imageViewer->SetupInteractor(m_renderWindow->GetInteractor());
+
+    // create and install the custom style
+    m_sphereStyle = vtkSmartPointer<SphereInteractorStyle>::New();
+    m_sphereStyle->SetDefaultRenderer(m_imageViewer->GetRenderer());
+
+
+    // Replace the default vtkInteractorStyleImage with ours.
+    // Since SphereInteractorStyle IS-A vtkInteractorStyleImage (Liskov
+    // Substitution), all existing image interaction (window/level, etc.)
+    // continues to work — we only ADD behaviour on top.
+    m_renderWindow->GetInteractor()->SetInteractorStyle(m_sphereStyle);
+
 
     // Axial view (looking down the Z-axis: head-to-feet in CT).
     m_imageViewer->SetSliceOrientationToXY();
