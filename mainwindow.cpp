@@ -19,6 +19,7 @@
 #include "vtkRenderer.h"
 #include "vtkCornerAnnotation.h"
 #include "vtkTextProperty.h"
+#include "vtkDICOMDirectory.h"
 
 #include <QDebug>
 #include <QDir>
@@ -92,56 +93,55 @@ void MainWindow::setupVTKWidget()
 void MainWindow::loadDicomDirectory(const QString &directoryPath)
 {
     // -----------------------------------------------------------------------
-    // Step 1: Validate directory exists.
-    // Fail-fast: report the error immediately rather than crashing later
-    // in the VTK pipeline with a cryptic message.
+    // Step 1: Scan the directory with vtkDICOMDirectory.
+    //
+    // WHY this over QDir:
+    //   - Detects DICOM files by header magic bytes, not just ".dcm" extension
+    //   - Automatically groups files into separate series (by SeriesInstanceUID)
+    //   - Returns vtkStringArray directly — no Qt↔VTK string conversion needed
+    //   - Sorts by ImagePositionPatient within each series
+    //
+    // SetScanDepth(1) means: scan only the given directory, not subdirectories.
+    // Increase to 2+ if your DICOM files are nested in subfolders.
     // -----------------------------------------------------------------------
-    const QDir dir(directoryPath);
-    if (!dir.exists()) {
-        qWarning() << "DICOM directory does not exist:" << directoryPath;
-        setWindowTitle("DICOM Viewer — ERROR: Directory not found");
+    vtkNew<vtkDICOMDirectory> dicomDir;
+    dicomDir->SetDirectoryName(directoryPath.toUtf8().constData());
+    dicomDir->SetScanDepth(1);
+    dicomDir->Update();
+
+    const int numberOfSeries = dicomDir->GetNumberOfSeries();
+    if (numberOfSeries == 0) {
+        qWarning() << "No DICOM series found in:" << directoryPath;
+        setWindowTitle("DICOM Viewer — ERROR: No DICOM series found");
         return;
     }
 
-    // -----------------------------------------------------------------------
-    // Step 2: List all .dcm files using QDir.
-    //
-    // WHY QDir instead of vtkDICOMDirectory:
-    //   - Zero additional VTK library dependencies
-    //   - vtkDICOMReader handles slice sorting internally by reading
-    //     ImagePositionPatient from each file's DICOM metadata
-    //   - QDir is well-tested, Qt-native, and already linked
-    // -----------------------------------------------------------------------
-    const QStringList nameFilters = {"*.dcm"};
-    const QStringList fileList = dir.entryList(nameFilters, QDir::Files, QDir::Name);
+    qDebug() << "Found" << numberOfSeries << "DICOM series";
 
-    if (fileList.isEmpty()) {
-        qWarning() << "No .dcm files found in:" << directoryPath;
-        setWindowTitle("DICOM Viewer — ERROR: No .dcm files found");
+    // -----------------------------------------------------------------------
+    // Step 2: Get file names for the first series.
+    //
+    // GetFileNamesForSeries() returns a vtkStringArray* directly —
+    // no QDir, no QStringList, no manual conversion loop.
+    // If you have multiple series (e.g., CT + scout), you'd let the user
+    // choose which series to load. For now, we take the first one.
+    // -----------------------------------------------------------------------
+    constexpr int seriesIndex = 0;  // First series
+    vtkStringArray *fileNames = dicomDir->GetFileNamesForSeries(seriesIndex);
+
+    if (fileNames == nullptr || fileNames->GetNumberOfValues() == 0) {
+        qWarning() << "Series 0 contains no files";
+        setWindowTitle("DICOM Viewer — ERROR: Empty series");
         return;
     }
 
-    qDebug() << "Found" << fileList.size() << ".dcm files in" << directoryPath;
-
-    // Convert Qt file list → VTK string array (absolute paths).
-    vtkNew<vtkStringArray> vtkFileNames;
-    for (const QString &fileName : fileList) {
-        const QString absolutePath = dir.absoluteFilePath(fileName);
-        vtkFileNames->InsertNextValue(absolutePath.toUtf8().constData());
-    }
+    qDebug() << "Series 0 contains" << fileNames->GetNumberOfValues() << "files";
 
     // -----------------------------------------------------------------------
-    // Step 3: Read the DICOM series with vtkDICOMReader.
-    //
-    // vtkDICOMReader (vtkDICOM 0.8.13) is superior to VTK's built-in
-    // vtkDICOMImageReader because it:
-    //   - Sorts slices by ImagePositionPatient automatically
-    //   - Applies RescaleSlope/Intercept for Hounsfield units
-    //   - Handles compressed transfer syntaxes
-    //   - Provides full DICOM metadata access
+    // Step 3: Read the DICOM series.
     // -----------------------------------------------------------------------
     m_dicomReader = vtkSmartPointer<vtkDICOMReader>::New();
-    m_dicomReader->SetFileNames(vtkFileNames);
+    m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
     m_dicomReader->Update();
 
     // -----------------------------------------------------------------------
@@ -162,6 +162,8 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
     // Axial view (looking down the Z-axis: head-to-feet in CT).
     m_imageViewer->SetSliceOrientationToXY();
+    // m_imageViewer->SetSliceOrientationToYZ();
+    // m_imageViewer->SetSliceOrientationToXZ();
 
     // -----------------------------------------------------------------------
     // Step 5: Configure window/level for typical CT soft-tissue viewing.
@@ -219,7 +221,7 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_imageViewer->Render();
 
     setWindowTitle(QString("DICOM Viewer — %1 slices [%2/%3]")
-                       .arg(fileList.size())
+                       .arg(fileNames->GetNumberOfValues())
                        .arg(middleSlice)
                        .arg(m_maxSlice));
 
