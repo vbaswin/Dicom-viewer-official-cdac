@@ -13,6 +13,7 @@
 #include <vtkPropPicker.h>
 #include <vtkCoordinate.h>
 #include <vtkSmartPointer.h>
+#include <vtkTubeFilter.h>
 #include "mainwindow.h"
 
 #include <vector>
@@ -33,13 +34,13 @@ public:
 
 
     void OnLeftButtonDown() override {
-        int *clickPos = this->Interactor->GetEventPosition();
         if (!m_annotationMode) {
             // normal image interactin
             vtkInteractorStyleImage::OnLeftButtonDown();
             return;
         }
 
+        int *clickPos = this->Interactor->GetEventPosition();
         vtkSmartPointer <vtkPropPicker> picker = vtkSmartPointer<vtkPropPicker>::New();
 
         // pick at 2D display , z depth always 0
@@ -47,7 +48,8 @@ public:
 
         vtkActor *pickedActor = dynamic_cast<vtkActor *>(picker->GetViewProp());
 
-        if (pickedActor != nullptr && isSphereActor(pickedActor)) {
+        int pairIdx = -1;;
+        if (pickedActor && isSphereActor(pickedActor)) {
             m_isDragging = true;
             m_draggedActor = pickedActor;
 
@@ -77,6 +79,17 @@ public:
         double worldPos[3];
         displayToWorld(clickPos[0], clickPos[1], worldPos);
         createSphereAt(worldPos);
+    }
+
+    bool findPairIndexByCylinder(vtkActor *actor, int &outIndex) const {
+        for (int i  = 0; i < static_cast<int>(m_pairs.size()) ; ++i ) {
+            if    (m_pairs[i].cylinderActor && m_pairs[i].cylinderActor.GetPointer == actor) {
+                outIndex = i;
+                return true;
+            }
+        }
+        return false;
+
     }
 
     // on move - update position if dragging
@@ -173,10 +186,23 @@ private:
     // state
     bool m_annotationMode = false;
 
-    std::vector<vtkSmartPointer<vtkActor>> m_sphereActors;
-    bool m_isDragging = false;
+    // std::vector<vtkSmartPointer<vtkActor>> m_sphereActors;
+    std::vector<AnnotationPair> m_pairs;
+    int m_clickCount = 0;
+
+    enum DragMode { DRAG_NONE, DRAG_SPHERE, DRAG_CYLINDER };
     vtkActor *m_draggedActor = nullptr;
+    int m_dragPairIndex = -1;
     double m_dragOffset[3] = { 0, 0, 0};
+
+
+    // for cylinder drag
+    double m_initialMouseWorld[3] = { 0, 0, 0};
+    double m_initialSphereAPos[3] = { 0, 0, 0};
+    double m_initialSphereBPos[3] = { 0, 0, 0};
+
+    bool m_isDragging = false;
+
 
 };
 vtkStandardNewMacro(SphereInteractorStyle);
