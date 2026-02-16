@@ -203,8 +203,8 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
 
     // Axial view (looking down the Z-axis: head-to-feet in CT).
-    m_imageViewer->SetSliceOrientationToXY();
-    // m_imageViewer->SetSliceOrientationToYZ();
+    // m_imageViewer->SetSliceOrientationToXY();
+    m_imageViewer->SetSliceOrientationToYZ();
     // m_imageViewer->SetSliceOrientationToXZ();
 
     // -----------------------------------------------------------------------

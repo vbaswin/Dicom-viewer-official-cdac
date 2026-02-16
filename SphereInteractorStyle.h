@@ -4,6 +4,7 @@
 #include "vtkRenderWindow.h"
 #include <vtkInteractorStyleImage.h>
 #include <vtkObjectFactory.h>          // vtkStandardNewMacro
+#include <vtkLineSource.h>          // vtkStandardNewMacro
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkSphereSource.h>
@@ -28,11 +29,6 @@ public:
     bool GetAnnotationMode() const { return m_annotationMode; }
 
 
-    const std::vector<vtkSmartPointer<vtkActor>> &GetSphereActors() const {
-        return m_sphereActors;
-    }
-
-
     void OnLeftButtonDown() override {
         if (!m_annotationMode) {
             // normal image interactin
@@ -41,6 +37,8 @@ public:
         }
 
         int *clickPos = this->Interactor->GetEventPosition();
+        this->FindPokedRenderer(clickPos[0], clickPos[1]);
+        if (!this->CurrentRenderer) return;
         vtkSmartPointer <vtkPropPicker> picker = vtkSmartPointer<vtkPropPicker>::New();
 
         // pick at 2D display , z depth always 0
@@ -49,9 +47,10 @@ public:
         vtkActor *pickedActor = dynamic_cast<vtkActor *>(picker->GetViewProp());
 
         int pairIdx = -1;;
-        if (pickedActor && isSphereActor(pickedActor)) {
-            m_isDragging = true;
+        if (pickedActor && findPairIndexBySphere(pickedActor, pairIdx)) {
+            m_dragMode = DRAG_SPHERE;
             m_draggedActor = pickedActor;
+            m_dragPairIndex = pairIdx;
 
 
             // Highlight the picked sphere (visual feedback)
@@ -75,28 +74,52 @@ public:
             // don't call parent, we are consuming this event
             return;
         }
+    // clicked on one of cylinders
+        if (pickedActor && findPairIndexByCylinder(pickedActor, pairIdx)) {
+            m_dragMode = DRAG_CYLINDER;
+            m_draggedActor = pickedActor;
+            m_dragPairIndex = pairIdx;
+
+
+            m_draggedActor->GetProperty()->SetColor(1.0, 1.0, 0.0); // yellow
+
+            // Cache initial state so we can compute deltas during drag.
+            // We store the mouse world pos AND both sphere positions at
+            // the moment of click. On every MouseMove we compute:
+            //   delta = currentMouse - initialMouse
+            //   newSphereA = initialA + delta
+            //   newSphereB = initialB + delta
+
+            double worldPos[3];
+            displayToWorld(clickPos[0], clickPos[1], worldPos);
+            m_initialMouseWorld[0] = worldPos[0];
+            m_initialMouseWorld[1] = worldPos[1];
+            m_initialMouseWorld[2] = worldPos[2];
+
+
+            AnnotationPair &pair = m_pairs[pairIdx];
+            double *posA = pair.sphereA->GetPosition();
+            double *posB = pair.sphereB->GetPosition();
+            for (int i = 0; i < 3; ++i) {
+                m_initialSphereAPos[i] = posA[i];
+                m_initialSphereBPos[i] = posB[i];
+            }
+            return;
+        }
+        if (m_clickCount >= 8) {
+            return;
+        }
+
         // emtpy space - create a new sphere
         double worldPos[3];
         displayToWorld(clickPos[0], clickPos[1], worldPos);
         createSphereAt(worldPos);
     }
-
-    bool findPairIndexByCylinder(vtkActor *actor, int &outIndex) const {
-        for (int i  = 0; i < static_cast<int>(m_pairs.size()) ; ++i ) {
-            if    (m_pairs[i].cylinderActor && m_pairs[i].cylinderActor.GetPointer == actor) {
-                outIndex = i;
-                return true;
-            }
-        }
-        return false;
-
-    }
-
     // on move - update position if dragging
 
     void OnMouseMove() override {
-        if (m_isDragging && m_draggedActor != nullptr) {
-            int *movePos = this->Interactor->GetEventPosition();
+        if (m_dragMode == DRAG_SPHERE ) {
+          int *movePos = this->Interactor->GetEventPosition();
             double worldPos[3];
             displayToWorld(movePos[0], movePos[1], worldPos);
 
@@ -108,26 +131,79 @@ public:
                 worldPos[2] - m_dragOffset[2]
                 );
 
+            AnnotationPair &pair = m_pairs[m_dragPairIndex];
+            if (pair.lineSource) {
+                updateCylinder(pair);
+            }
+
+
             // reques re-render so user sees the sphere move in real-time
             this->Interactor->GetRenderWindow()->Render();
             return; // Don't pass to parent
 
         }
-        vtkInteractorStyleImage::OnMouseMove();
-    }
-    void OnLeftButtonUp() override {
-        if (m_isDragging && m_draggedActor != nullptr ) {
-                // Restore original color
-                m_draggedActor->GetProperty()->SetColor(1.0, 0.2, 0.2); // red
-                m_draggedActor = nullptr;
-                m_isDragging = false;
+            if (m_dragMode == DRAG_CYLINDER) {
+                int *movePos = this->Interactor->GetEventPosition();
+                double worldPos[3];
+                displayToWorld(movePos[0], movePos[1], worldPos);
 
-                this->Interactor->GetRenderWindow() ->Render();
+                // Delta = how far mouse moved since initial click
+                double delta[3];
+                delta[0] = worldPos[0] - m_initialMouseWorld[0];
+                delta[1] = worldPos[1] - m_initialMouseWorld[1];
+                delta[2] = worldPos[2] - m_initialMouseWorld[2];
+
+                // Move BOTH spheres by the same delta → rigid body motion
+                AnnotationPair &pair = m_pairs[m_dragPairIndex];
+                pair.sphereA->SetPosition(
+                    m_initialSphereAPos[0] + delta[0],
+                    m_initialSphereAPos[1] + delta[1],
+                    m_initialSphereAPos[2] + delta[2]
+                    );
+                pair.sphereB->SetPosition(
+                    m_initialSphereBPos[0] + delta[0],
+                    m_initialSphereBPos[1] + delta[1],
+                    m_initialSphereBPos[2] + delta[2]
+                    );
+
+                updateCylinder(pair);
+                this->Interactor->GetRenderWindow()->Render();
                 return;
             }
+    }
+
+    // ===================================================================
+    // LEFT BUTTON UP — end any active drag
+    // ===================================================================
+    void OnLeftButtonUp() override
+    {
+        if (m_dragMode == DRAG_SPHERE) {
+            // Restore red
+            m_draggedActor->GetProperty()->SetColor(1.0, 0.2, 0.2);
+            resetDragState();
+            this->Interactor->GetRenderWindow()->Render();
+            return;
+        }
+
+        if (m_dragMode == DRAG_CYLINDER) {
+            // Restore blue
+            m_draggedActor->GetProperty()->SetColor(0.3, 0.6, 1.0);
+            resetDragState();
+            this->Interactor->GetRenderWindow()->Render();
+            return;
+        }
+
         vtkInteractorStyleImage::OnLeftButtonUp();
     }
 private:
+    struct AnnotationPair {
+        vtkSmartPointer<vtkActor> sphereA;
+        vtkSmartPointer<vtkActor> sphereB;
+        vtkSmartPointer<vtkLineSource> lineSource;
+        vtkSmartPointer<vtkTubeFilter> tubeFilter;
+        vtkSmartPointer<vtkActor> cylinderActor;
+
+    };
     // sphere creation
     void createSphereAt(const double worldPos[3]) {
         vtkSmartPointer<vtkSphereSource> sphereSource = vtkSmartPointer<vtkSphereSource>::New();
@@ -155,18 +231,79 @@ private:
 
         // add to renderer, track in our list
         this->CurrentRenderer->AddActor(actor);
-        m_sphereActors.push_back(actor);
+
+        if (m_clickCount % 2 == 0) {
+            AnnotationPair newPair;
+            newPair.sphereA = actor;
+            m_pairs.push_back(newPair);
+        }  else {
+            AnnotationPair &pair = m_pairs.back();
+            pair.sphereB = actor;
+            createConnectionBetween(pair);
+
+        }
+        m_clickCount++;
         this->Interactor->GetRenderWindow()->Render();
     }
 
+    void createConnectionBetween(AnnotationPair &pair) {
+        double *posA = pair.sphereA->GetPosition();
+        double *posB = pair.sphereB->GetPosition();
 
-    // hit test - is this one of our spheres
-    bool isSphereActor(vtkActor *actor) const {
-        for (const auto &sphereActor: m_sphereActors) {
-            if (sphereActor.GetPointer() == actor) {
+
+        // source
+        pair.lineSource = vtkSmartPointer<vtkLineSource>::New();
+        pair.lineSource->SetPoint1(posA);
+        pair.lineSource->SetPoint2(posB);
+        pair.lineSource->Update();
+
+        // wrap a tube filter around it
+        pair.tubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
+        pair.tubeFilter->SetInputConnection(pair.lineSource->GetOutputPort());
+        pair.tubeFilter->SetRadius(1.5);
+        pair.tubeFilter->SetNumberOfSides(20);
+        pair.tubeFilter->CappingOn();
+        pair.tubeFilter->Update();
+
+
+        vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        mapper->SetInputConnection(pair.tubeFilter->GetOutputPort());
+
+        pair.cylinderActor = vtkSmartPointer<vtkActor>::New();
+        pair.cylinderActor->SetMapper(mapper);
+        pair.cylinderActor->GetProperty()->SetColor(0.3, 0.6, 1.0);
+        pair.cylinderActor->GetProperty()->SetOpacity(0.7);
+
+        this->CurrentRenderer->AddActor(pair.cylinderActor);
+
+    }
+
+    void updateCylinder(AnnotationPair &pair) {
+        double *posA = pair.sphereA->GetPosition();
+        double *posB = pair.sphereB->GetPosition();
+
+        pair.lineSource->SetPoint1(posA);
+        pair.lineSource->SetPoint2(posB);
+        pair.lineSource->Update();
+    }
+
+    bool findPairIndexBySphere(vtkActor *actor, int &outIndex) const {
+        for (int i = 0; i < static_cast<int>(m_pairs.size()); ++i) {
+            if (m_pairs[i].sphereA.GetPointer() == actor || (m_pairs[i].sphereB && m_pairs[i].sphereB.GetPointer() == actor)) {
+                outIndex = i;
                 return true;
             }
         }
+        return false;
+    }
+    bool findPairIndexByCylinder(vtkActor *actor, int &outIndex) const {
+        for (int i = 0; i < static_cast<int>(m_pairs.size()); ++i) {
+            if (m_pairs[i].cylinderActor && m_pairs[i].cylinderActor.GetPointer() == actor) {
+                outIndex = i;
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -191,6 +328,8 @@ private:
     int m_clickCount = 0;
 
     enum DragMode { DRAG_NONE, DRAG_SPHERE, DRAG_CYLINDER };
+
+    DragMode m_dragMode = DRAG_NONE;
     vtkActor *m_draggedActor = nullptr;
     int m_dragPairIndex = -1;
     double m_dragOffset[3] = { 0, 0, 0};
@@ -201,7 +340,11 @@ private:
     double m_initialSphereAPos[3] = { 0, 0, 0};
     double m_initialSphereBPos[3] = { 0, 0, 0};
 
-    bool m_isDragging = false;
+    void resetDragState() {
+        m_dragMode = DRAG_NONE;
+        m_draggedActor = nullptr;
+        m_dragPairIndex = -1;
+    }
 
 
 };

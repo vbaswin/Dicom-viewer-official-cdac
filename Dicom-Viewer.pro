@@ -46,7 +46,7 @@ HEADERS += \
      -lvtkImagingCore-8.2 \
      -lvtkImagingColor-8.2 \
      -lvtkInteractionWidgets-8.2 \
-     -lvtkFilersCore-8.2
+     -lvtkFiltersCore-8.2
 
  # --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
  VTKDICOM_INSTALL = C:/Users/aswin/Projects/VTKDicom/install
