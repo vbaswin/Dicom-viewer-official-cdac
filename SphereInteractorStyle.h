@@ -33,13 +33,13 @@ public:
 
 
     void OnLeftButtonDown() override {
+        int *clickPos = this->Interactor->GetEventPosition();
         if (!m_annotationMode) {
             // normal image interactin
             vtkInteractorStyleImage::OnLeftButtonDown();
             return;
         }
 
-        int *clickPos = this->Interactor->GetEventPosition();
         vtkSmartPointer <vtkPropPicker> picker = vtkSmartPointer<vtkPropPicker>::New();
 
         // pick at 2D display , z depth always 0
@@ -81,7 +81,7 @@ public:
 
     // on move - update position if dragging
 
-    void onMouseMove() {
+    void OnMouseMove() override {
         if (m_isDragging && m_draggedActor != nullptr) {
             int *movePos = this->Interactor->GetEventPosition();
             double worldPos[3];
@@ -118,7 +118,7 @@ private:
     // sphere creation
     void createSphereAt(const double worldPos[3]) {
         vtkSmartPointer<vtkSphereSource> sphereSource = vtkSmartPointer<vtkSphereSource>::New();
-        sphereSource->SetRadius(3.0);
+        sphereSource->SetRadius(8.0);
         sphereSource->SetThetaResolution(20);
         sphereSource->SetPhiResolution(20);
 

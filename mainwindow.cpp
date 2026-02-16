@@ -93,6 +93,7 @@ void MainWindow::setupToolBar() {
 
     m_annotateButton = new QPushButton("Mark Point", this);
     m_annotateButton->setCheckable(true);
+    // m_annotateButton->setChecked(true);
     connect(m_annotateButton, &QPushButton::toggled,
             this, &MainWindow::toggleAnnotationMode);
     toolbar->addWidget(m_annotateButton);
@@ -195,6 +196,10 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     // Substitution), all existing image interaction (window/level, etc.)
     // continues to work — we only ADD behaviour on top.
     m_renderWindow->GetInteractor()->SetInteractorStyle(m_sphereStyle);
+
+    // Sync: the button's toggled signal fired during setupToolBar(),
+    // but m_sphereStyle didn't exist yet — push the state now.
+    m_sphereStyle->SetAnnotationMode(m_annotateButton->isChecked());
 
 
     // Axial view (looking down the Z-axis: head-to-feet in CT).
