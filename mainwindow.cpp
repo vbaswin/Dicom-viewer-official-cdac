@@ -15,6 +15,7 @@
 #include "vtkInteractorStyleImage.h"
 #include "vtkCallbackCommand.h"
 
+#include <QHBoxLayout>
 
 
 #include "vtkSphereWidget.h"

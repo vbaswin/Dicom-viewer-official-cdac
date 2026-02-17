@@ -31,7 +31,7 @@ class SphereInteractorStyle;
 
 
 // Volume rendering (CRITICAL)
-// VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
+VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
