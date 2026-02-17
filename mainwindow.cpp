@@ -254,7 +254,8 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     annotation->SetLinearFontScaleFactor(2);
     annotation->SetNonlinearFontScaleFactor(1);
     annotation->SetMaximumFontSize(18);
-    annotation->SetText(0, "Slice: <slice> / <slicemax>");  // Bottom-left
+    const std::string sliceLabel = "Slice: <slice> / " + std::to_string(totalSlices);
+    annotation->SetText(0, sliceLabel.c_str());
     annotation->SetText(2, "DICOM Viewer");                   // Top-left
     annotation->GetTextProperty()->SetColor(1.0, 1.0, 1.0);
     m_imageViewer->GetRenderer()->AddViewProp(annotation);
