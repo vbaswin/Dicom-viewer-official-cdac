@@ -11,8 +11,6 @@
 #include <QPushButton>
 #include <vtkCallbackCommand.h>
 
-
-
 #include <vtkAutoInit.h>
 
 // Core rendering
@@ -57,6 +55,7 @@ private:
 
     // --- UI Components ---
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;  // Owned by Qt parent hierarchy
+    QVTKOpenGLNativeWidget *m_mipWidget = nullptr;  // Owned by Qt parent hierarchy
 
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
@@ -71,6 +70,8 @@ private:
     vtkSmartPointer<SphereInteractorStyle> m_sphereStyle;
 
     QPushButton *m_annotateButton = nullptr;
+
+    vtkNew<vtkGenericOpenGLRenderWindow> m_mipRenderWindow;
 
 };
 #endif // MAINWINDOW_H

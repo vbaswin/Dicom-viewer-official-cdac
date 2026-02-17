@@ -20,7 +20,9 @@
 
 #include "vtkSphereWidget.h"
 #include "vtkCoordinate.h"
+#include "vtkImageData.h"
 #include "vtkProperty.h"
+#include "vtkCamera.h"
 
 // VTK utilities
 #include "vtkStringArray.h"
@@ -33,6 +35,14 @@
 #include <QToolBar>
 #include <QDir>
 #include <QStringList>
+
+#include "vtkVolume.h" // 3d actor equivalent
+#include "vtkVolumeProperty.h" // binds transfer functions
+#include "vtkGPUVolumeRayCastMapper.h" // mip mapper
+
+
+#include "vtkPiecewiseFunction.h" // opacity map
+#include "vtkColorTransferFunction.h" // color ramp
 
 
 
@@ -103,13 +113,24 @@ void MainWindow::setupToolBar() {
 }
 void MainWindow::setupVTKWidget()
 {
-    // QVTKOpenGLNativeWidget is the modern VTK-Qt bridge (VTK 8.1+).
-    // Passing 'this' makes Qt manage its lifetime via parent-child ownership.
-    m_vtkWidget = new QVTKOpenGLNativeWidget(this);
-    setCentralWidget(m_vtkWidget);
+    QWidget *container = new QWidget(this);
+    QHBoxLayout *layout = new QHBoxLayout(container);
+    layout->setContentsMargins(0,0, 0, 0);
+    layout->setSpacing(0);
+
+    m_vtkWidget = new QVTKOpenGLNativeWidget(container);
+    m_mipWidget = new QVTKOpenGLNativeWidget(container);
+
+    layout->addWidget(m_vtkWidget, 1);
+    layout->addWidget(m_mipWidget, 1);
+
+    setCentralWidget(container);
 
     m_vtkWidget->SetRenderWindow(m_renderWindow);
+    m_mipWidget->SetRenderWindow(m_mipRenderWindow);
+
     m_renderWindow->GetInteractor()->Initialize();
+    m_mipRenderWindow->GetInteractor()->Initialize();
 }
 
 void MainWindow::toggleAnnotationMode(bool enabled)
@@ -137,6 +158,10 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     dicomDir->SetDirectoryName(directoryPath.toUtf8().constData());
     dicomDir->SetScanDepth(1);
     dicomDir->Update();
+
+
+
+
 
     const int numberOfSeries = dicomDir->GetNumberOfSeries();
     if (numberOfSeries == 0) {
@@ -172,6 +197,52 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_dicomReader = vtkSmartPointer<vtkDICOMReader>::New();
     m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
     m_dicomReader->Update();
+
+    double range[2];
+    m_dicomReader->GetOutput()->GetScalarRange(range);
+
+
+    vtkNew<vtkGPUVolumeRayCastMapper> mipMapper;
+    mipMapper->SetInputConnection(m_dicomReader->GetOutputPort());
+    mipMapper->SetBlendModeToMaximumIntensity();
+
+        // 2. Transfer functions — for MIP, opacity is binary (all or nothing),
+  //    color is a simple grayscale ramp over the actual data range.
+    vtkNew<vtkPiecewiseFunction> opacity;
+    opacity->AddPoint(range[0], 0.0);
+    opacity->AddPoint(-500.0, 0.0);
+    opacity->AddPoint(-499.0, 1.0);
+    opacity->AddPoint(range[1], 1.0);
+
+    vtkNew<vtkColorTransferFunction> color;
+    color->AddRGBPoint(range[0], 0.0, 0.0, 0.0); // black at min
+    color->AddRGBPoint(range[1], 1.0, 1.0, 1.0); // white at max
+
+    vtkNew<vtkVolumeProperty> volProp;
+    volProp->SetScalarOpacity(opacity);
+    volProp->SetColor(color);
+    volProp->ShadeOff(); // Shading is meaningless in MIP — max value always wins
+
+
+    vtkNew<vtkVolume> mipVolume;
+    mipVolume->SetMapper(mipMapper);
+    mipVolume->SetProperty(volProp);
+
+    vtkNew<vtkRenderer> mipRenderer;
+    mipRenderer->AddVolume(mipVolume);
+
+
+    vtkCamera *cam = mipRenderer->GetActiveCamera();
+    cam->SetPosition(0, -1, 0);   // camera sits on -Y axis (anterior)
+    cam->SetFocalPoint(0, 0, 0);  // looking toward +Y (posterior)
+    cam->SetViewUp(0, 0, 1);      // Z = superior = "up" in coronal
+
+
+    mipRenderer->ResetCamera();
+    mipRenderer->SetBackground(0.05, 0.05, 0.05);
+
+    m_mipRenderWindow->AddRenderer(mipRenderer);
+    m_mipRenderWindow->Render();
 
     // -----------------------------------------------------------------------
     // Step 4: Set up vtkImageViewer2 for 2D slice viewing.
