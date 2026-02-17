@@ -83,7 +83,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Load the DICOM dataset. The path is injected at the call site —
     // loadDicomDirectory() itself is path-agnostic (Dependency Inversion).
-    loadDicomDirectory("C:/Users/aswin/OneDrive/Documents/dicom-images");
+    loadDicomDirectory("C:/Users/cdac/Projects/SE2dcm");
 }
 
 MainWindow::~MainWindow() = default;
@@ -224,7 +224,8 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
     // Start at the middle slice — often the most anatomically informative.
     const int middleSlice = (m_minSlice + m_maxSlice) / 2;
-    m_imageViewer->SetSlice(middleSlice);
+    // m_imageViewer->SetSlice(middleSlice);
+    m_imageViewer->SetSlice(400);
 
     // -----------------------------------------------------------------------
     // Step 6: Add corner annotation overlay showing slice info.

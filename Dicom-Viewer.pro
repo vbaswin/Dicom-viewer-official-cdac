@@ -19,7 +19,7 @@ HEADERS += \
 
 
 # --- VTK 8.2 (MSVC 2019-compatible x64 build) ---
- VTK_INSTALL = C:/Users/aswin/Projects/VTK8.2/install
+ VTK_INSTALL = C:\Users\cdac\Projects\VTK8.2\install
 
  INCLUDEPATH += $$VTK_INSTALL/include/vtk-8.2
  DEPENDPATH  += $$VTK_INSTALL/include/vtk-8.2
@@ -49,7 +49,7 @@ HEADERS += \
      -lvtkFiltersCore-8.2
 
  # --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
- VTKDICOM_INSTALL = C:/Users/aswin/Projects/VTKDicom/install
+ VTKDICOM_INSTALL = C:\Users\cdac\Projects\VTKDicom\install
 
  INCLUDEPATH += $$VTKDICOM_INSTALL/include
  QMAKE_LIBDIR += $$VTKDICOM_INSTALL/lib
