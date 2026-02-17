@@ -1,4 +1,4 @@
-#ifndef SPHEREINTERACTORSTYLE_H
+﻿#ifndef SPHEREINTERACTORSTYLE_H
 #define SPHEREINTERACTORSTYLE_H
 
 #include "vtkRenderWindow.h"
@@ -18,6 +18,9 @@
 #include "mainwindow.h"
 
 #include <vector>
+#include <vtkImageViewer2.h>
+#include <functional>
+#include <algorithm>
 
 
 class SphereInteractorStyle : public vtkInteractorStyleImage {
@@ -54,7 +57,7 @@ public:
 
 
             // Highlight the picked sphere (visual feedback)
-            // Concept: we change the actor's Property — the mapper/source
+            // Concept: we change the actor's Property â€” the mapper/source
             // stay untouched (Composition: actor appearance is separate
             // from geometry).
             m_draggedActor->GetProperty()->SetColor(1.0, 1.0, 0.0); // yellow
@@ -153,7 +156,7 @@ public:
                 delta[1] = worldPos[1] - m_initialMouseWorld[1];
                 delta[2] = worldPos[2] - m_initialMouseWorld[2];
 
-                // Move BOTH spheres by the same delta → rigid body motion
+                // Move BOTH spheres by the same delta â†’ rigid body motion
                 AnnotationPair &pair = m_pairs[m_dragPairIndex];
                 pair.sphereA->SetPosition(
                     m_initialSphereAPos[0] + delta[0],
@@ -173,7 +176,7 @@ public:
     }
 
     // ===================================================================
-    // LEFT BUTTON UP — end any active drag
+    // LEFT BUTTON UP â€” end any active drag
     // ===================================================================
     void OnLeftButtonUp() override
     {
@@ -185,6 +188,7 @@ public:
             return;
         }
 
+
         if (m_dragMode == DRAG_CYLINDER) {
             // Restore blue
             m_draggedActor->GetProperty()->SetColor(0.3, 0.6, 1.0);
@@ -195,7 +199,43 @@ public:
 
         vtkInteractorStyleImage::OnLeftButtonUp();
     }
+    void OnMouseWheelForward () override {
+        if (!m_viewer) return;
+        m_viewer->SetSlice(std::min(m_viewer->GetSlice() + m_sliceStep, m_maxSlice));
+        m_viewer->Render();
+        if(m_sliceChangedCb)
+            m_sliceChangedCb(m_viewer->GetSlice(), m_maxSlice, m_totalSlices);
+
+        }
+
+   void OnMouseWheelBackward () override {
+       if (!m_viewer) return;
+       m_viewer->SetSlice(std::max(m_viewer->GetSlice() - m_sliceStep, m_minSlice));
+       m_viewer->Render();
+       if(m_sliceChangedCb)
+           m_sliceChangedCb(m_viewer->GetSlice(), m_maxSlice, m_totalSlices);
+
+
+        }
+   void SetImageViewer(vtkImageViewer2 *viewer, int totalSlices, int sliceStep) {
+       m_viewer = viewer;
+       m_totalSlices = totalSlices;
+       m_minSlice = viewer->GetSliceMin();
+       m_maxSlice = viewer->GetSliceMax();
+       m_sliceStep = sliceStep;
+   }
+   void SetSliceChangedCallback(std::function<void(int, int, int)> cb) {
+       m_sliceChangedCb = std::move(cb);
+   }
+
+
 private:
+   vtkImageViewer2 *m_viewer = nullptr;
+    int m_totalSlices = 0;
+   int m_minSlice = 0;
+    int m_maxSlice = 0;
+    int m_sliceStep = 1;
+   std::function<void(int, int, int)> m_sliceChangedCb;
     struct AnnotationPair {
         vtkSmartPointer<vtkActor> sphereA;
         vtkSmartPointer<vtkActor> sphereB;

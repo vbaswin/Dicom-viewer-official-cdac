@@ -6,6 +6,32 @@ TEMPLATE = app
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
+# PRECOMPILED_HEADER = precomp.h
+
+# =============================================================================
+# "Release With Debug Info" — the correct strategy when linking against
+# pre-built Release third-party libraries (VTK, vtkDICOM).
+#
+# WHY: Mixing Debug Qt DLLs (your app) with Release Qt DLLs (inside VTK)
+# creates two separate qApp globals in one process — VTK sees null and crashes.
+# This config uses the SAME Release CRT as VTK while retaining full debuggability
+# of YOUR source code.
+#
+# /Od  = No optimization  → source lines map 1:1 to machine code → step works
+# /Zi  = Full debug info  → breakpoints, variable inspection work
+# /MD  = Release CRT      → same allocator/runtime as VTK DLLs (no mismatch)
+# =============================================================================
+CONFIG += release force_debug_info
+# QMAKE_CXXFLAGS_RELEASE -= /O2 /O1          # Strip default release optimizations
+# QMAKE_CXXFLAGS_RELEASE += /Od /Zi          # No-opt + full debug symbols
+# QMAKE_LFLAGS_RELEASE    += /DEBUG          # Linker emits .pdb for the executable
+# Strip optimizations from BOTH flag sets that force_debug_info uses
+QMAKE_CXXFLAGS_RELEASE                  -= /O2 /O1
+QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO   -= /O2 /O1
+QMAKE_CXXFLAGS_RELEASE                  += /Od
+QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO   += /Od
+QMAKE_LFLAGS_RELEASE                    += /DEBUG
+
 DEFINES	+= QT_DEPRECATED_WARNINGS
 
 SOURCES += \
@@ -14,7 +40,8 @@ SOURCES += \
 
 HEADERS += \
     SphereInteractorStyle.h \
-    mainwindow.h
+    mainwindow.h \
+    precomp.h
 
 
 

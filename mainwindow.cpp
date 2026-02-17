@@ -33,6 +33,8 @@
 #include <QDir>
 #include <QStringList>
 
+
+
 // ---------------------------------------------------------------------------
 // Anonymous namespace for file-local helpers.
 // Prevents global symbol pollution (the "Library Mindset").
@@ -222,10 +224,25 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_minSlice = m_imageViewer->GetSliceMin();
     m_maxSlice = m_imageViewer->GetSliceMax();
 
+
+
+    const int  totalSlices = static_cast<int>(fileNames->GetNumberOfValues());
+    const int   sliceStep = 5;
+    m_sphereStyle->SetImageViewer(m_imageViewer, totalSlices, sliceStep);
+    m_sphereStyle->SetSliceChangedCallback([this, totalSlices](int current, int maxSlice, int /*total*/) {
+        setWindowTitle(QString("DICOM Viewer - %1 slices [%2/%3]")
+                           .arg(totalSlices)
+                           .arg(current)
+                           .arg(maxSlice)
+                       );
+    });
+
+
     // Start at the middle slice — often the most anatomically informative.
     const int middleSlice = (m_minSlice + m_maxSlice) / 2;
-    // m_imageViewer->SetSlice(middleSlice);
-    m_imageViewer->SetSlice(400);
+    m_imageViewer->SetSlice(middleSlice);
+    // m_imageViewer->SetSlice();
+    m_imageViewer->GetRenderer()->ResetCamera();
 
     // -----------------------------------------------------------------------
     // Step 6: Add corner annotation overlay showing slice info.
@@ -237,7 +254,7 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     annotation->SetLinearFontScaleFactor(2);
     annotation->SetNonlinearFontScaleFactor(1);
     annotation->SetMaximumFontSize(18);
-    annotation->SetText(0, "Slice: <slice> / <slice_max>");  // Bottom-left
+    annotation->SetText(0, "Slice: <slice> / <slicemax>");  // Bottom-left
     annotation->SetText(2, "DICOM Viewer");                   // Top-left
     annotation->GetTextProperty()->SetColor(1.0, 1.0, 1.0);
     m_imageViewer->GetRenderer()->AddViewProp(annotation);
@@ -250,13 +267,13 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     // vtkCallbackCommand bridges VTK's event system to our free function.
     // The vtkImageViewer2 pointer is injected as clientData.
     // -----------------------------------------------------------------------
-    vtkNew<vtkCallbackCommand> wheelCallback;
-    wheelCallback->SetCallback(scrollCallback);
-    wheelCallback->SetClientData(m_imageViewer);
+    // vtkNew<vtkCallbackCommand> wheelCallback;
+    // wheelCallback->SetCallback(scrollCallback);
+    // wheelCallback->SetClientData(m_imageViewer);
 
-    vtkRenderWindowInteractor *interactor = m_renderWindow->GetInteractor();
-    interactor->AddObserver(vtkCommand::MouseWheelForwardEvent, wheelCallback);
-    interactor->AddObserver(vtkCommand::MouseWheelBackwardEvent, wheelCallback);
+    // vtkRenderWindowInteractor *interactor = m_renderWindow->GetInteractor();
+    // interactor->AddObserver(vtkCommand::MouseWheelForwardEvent, wheelCallback);
+    // interactor->AddObserver(vtkCommand::MouseWheelBackwardEvent, wheelCallback);
 
     // -----------------------------------------------------------------------
     // Step 8: Initial render.
