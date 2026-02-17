@@ -208,19 +208,19 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
         // 2. Transfer functions — for MIP, opacity is binary (all or nothing),
   //    color is a simple grayscale ramp over the actual data range.
-    vtkNew<vtkPiecewiseFunction> opacity;
-    opacity->AddPoint(range[0], 0.0);
-    opacity->AddPoint(-500.0, 0.0);
-    opacity->AddPoint(-499.0, 1.0);
-    opacity->AddPoint(range[1], 1.0);
+    // vtkNew<vtkPiecewiseFunction> opacity;
+    // opacity->AddPoint(range[0], 0.0);
+    // opacity->AddPoint(-500.0, 0.0);
+    // opacity->AddPoint(-499.0, 1.0);
+    // opacity->AddPoint(range[1], 1.0);
 
-    vtkNew<vtkColorTransferFunction> color;
-    color->AddRGBPoint(range[0], 0.0, 0.0, 0.0); // black at min
-    color->AddRGBPoint(range[1], 1.0, 1.0, 1.0); // white at max
+    // vtkNew<vtkColorTransferFunction> color;
+    // color->AddRGBPoint(range[0], 0.0, 0.0, 0.0); // black at min
+    // color->AddRGBPoint(range[1], 1.0, 1.0, 1.0); // white at max
 
     vtkNew<vtkVolumeProperty> volProp;
-    volProp->SetScalarOpacity(opacity);
-    volProp->SetColor(color);
+    // volProp->SetScalarOpacity(opacity);
+    // volProp->SetColor(color);
     volProp->ShadeOff(); // Shading is meaningless in MIP — max value always wins
 
 
