@@ -45,6 +45,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void loadDicomDirectory(const QString &directoryPath);
+    void mpiViewer();
 private slots:
     void toggleAnnotationMode(bool enabled);
 private:

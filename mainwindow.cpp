@@ -140,63 +140,7 @@ void MainWindow::toggleAnnotationMode(bool enabled)
     }
 }
 
-void MainWindow::loadDicomDirectory(const QString &directoryPath)
-{
-    // -----------------------------------------------------------------------
-    // Step 1: Scan the directory with vtkDICOMDirectory.
-    //
-    // WHY this over QDir:
-    //   - Detects DICOM files by header magic bytes, not just ".dcm" extension
-    //   - Automatically groups files into separate series (by SeriesInstanceUID)
-    //   - Returns vtkStringArray directly — no Qt↔VTK string conversion needed
-    //   - Sorts by ImagePositionPatient within each series
-    //
-    // SetScanDepth(1) means: scan only the given directory, not subdirectories.
-    // Increase to 2+ if your DICOM files are nested in subfolders.
-    // -----------------------------------------------------------------------
-    vtkNew<vtkDICOMDirectory> dicomDir;
-    dicomDir->SetDirectoryName(directoryPath.toUtf8().constData());
-    dicomDir->SetScanDepth(1);
-    dicomDir->Update();
-
-
-
-
-
-    const int numberOfSeries = dicomDir->GetNumberOfSeries();
-    if (numberOfSeries == 0) {
-        qWarning() << "No DICOM series found in:" << directoryPath;
-        setWindowTitle("DICOM Viewer — ERROR: No DICOM series found");
-        return;
-    }
-
-    qDebug() << "Found" << numberOfSeries << "DICOM series";
-
-    // -----------------------------------------------------------------------
-    // Step 2: Get file names for the first series.
-    //
-    // GetFileNamesForSeries() returns a vtkStringArray* directly —
-    // no QDir, no QStringList, no manual conversion loop.
-    // If you have multiple series (e.g., CT + scout), you'd let the user
-    // choose which series to load. For now, we take the first one.
-    // -----------------------------------------------------------------------
-    constexpr int seriesIndex = 0;  // First series
-    vtkStringArray *fileNames = dicomDir->GetFileNamesForSeries(seriesIndex);
-
-    if (fileNames == nullptr || fileNames->GetNumberOfValues() == 0) {
-        qWarning() << "Series 0 contains no files";
-        setWindowTitle("DICOM Viewer — ERROR: Empty series");
-        return;
-    }
-
-    qDebug() << "Series 0 contains" << fileNames->GetNumberOfValues() << "files";
-
-    // -----------------------------------------------------------------------
-    // Step 3: Read the DICOM series.
-    // -----------------------------------------------------------------------
-    m_dicomReader = vtkSmartPointer<vtkDICOMReader>::New();
-    m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
-    m_dicomReader->Update();
+void MainWindow::mpiViewer() {
 
     double range[2];
     m_dicomReader->GetOutput()->GetScalarRange(range);
@@ -243,6 +187,65 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
     m_mipRenderWindow->AddRenderer(mipRenderer);
     m_mipRenderWindow->Render();
+}
+
+void MainWindow::loadDicomDirectory(const QString &directoryPath)
+{
+    // -----------------------------------------------------------------------
+    // Step 1: Scan the directory with vtkDICOMDirectory.
+    //
+    // WHY this over QDir:
+    //   - Detects DICOM files by header magic bytes, not just ".dcm" extension
+    //   - Automatically groups files into separate series (by SeriesInstanceUID)
+    //   - Returns vtkStringArray directly — no Qt↔VTK string conversion needed
+    //   - Sorts by ImagePositionPatient within each series
+    //
+    // SetScanDepth(1) means: scan only the given directory, not subdirectories.
+    // Increase to 2+ if your DICOM files are nested in subfolders.
+    // -----------------------------------------------------------------------
+    vtkNew<vtkDICOMDirectory> dicomDir;
+    dicomDir->SetDirectoryName(directoryPath.toUtf8().constData());
+    dicomDir->SetScanDepth(1);
+    dicomDir->Update();
+
+
+
+    const int numberOfSeries = dicomDir->GetNumberOfSeries();
+    if (numberOfSeries == 0) {
+        qWarning() << "No DICOM series found in:" << directoryPath;
+        setWindowTitle("DICOM Viewer — ERROR: No DICOM series found");
+        return;
+    }
+
+    qDebug() << "Found" << numberOfSeries << "DICOM series";
+
+    // -----------------------------------------------------------------------
+    // Step 2: Get file names for the first series.
+    //
+    // GetFileNamesForSeries() returns a vtkStringArray* directly —
+    // no QDir, no QStringList, no manual conversion loop.
+    // If you have multiple series (e.g., CT + scout), you'd let the user
+    // choose which series to load. For now, we take the first one.
+    // -----------------------------------------------------------------------
+    constexpr int seriesIndex = 0;  // First series
+    vtkStringArray *fileNames = dicomDir->GetFileNamesForSeries(seriesIndex);
+
+    if (fileNames == nullptr || fileNames->GetNumberOfValues() == 0) {
+        qWarning() << "Series 0 contains no files";
+        setWindowTitle("DICOM Viewer — ERROR: Empty series");
+        return;
+    }
+
+    qDebug() << "Series 0 contains" << fileNames->GetNumberOfValues() << "files";
+
+    // -----------------------------------------------------------------------
+    // Step 3: Read the DICOM series.
+    // -----------------------------------------------------------------------
+    m_dicomReader = vtkSmartPointer<vtkDICOMReader>::New();
+    m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
+    m_dicomReader->Update();
+
+    mpiViewer();
 
     // -----------------------------------------------------------------------
     // Step 4: Set up vtkImageViewer2 for 2D slice viewing.
