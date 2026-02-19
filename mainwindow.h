@@ -2,13 +2,14 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "QVTKOpenGLNativeWidget.h"
-#include "vtkSmartPointer.h"
-#include "vtkGenericOpenGLRenderWindow.h"
-#include "vtkRenderer.h"
-#include "vtkActor.h"
-#include "vtkNew.h"
 #include <QPushButton>
+#include "MipViewer.h"
+#include "QVTKOpenGLNativeWidget.h"
+#include "vtkActor.h"
+#include "vtkGenericOpenGLRenderWindow.h"
+#include "vtkNew.h"
+#include "vtkRenderer.h"
+#include "vtkSmartPointer.h"
 #include <vtkCallbackCommand.h>
 
 #include <vtkAutoInit.h>
@@ -45,10 +46,10 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void loadDicomDirectory(const QString &directoryPath);
-    void mpiViewer();
 private slots:
     void toggleAnnotationMode(bool enabled);
 private:
+    std::unique_ptr<MipViewer> m_mipViewer;
     void setupVTKWidget();
     void setupToolBar();
 

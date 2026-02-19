@@ -1,11 +1,9 @@
- #include "mainwindow.h"
+#include "mainwindow.h"
 #include "SphereInteractorStyle.h"
-#include "vtkImageReslice.h"
-#include "vtkImageReslice.h"     // 2D slab/MIP filter (vtkImagingCore — already linked)
-#include "vtkImageActor.h"       // 2D image display actor (vtkRenderingImage — already linked)
-#include "vtkMatrix4x4.h"       // 2D image display actor (vtkRenderingImage — already linked)
-#include "vtkImageProperty.h"    // window/level control for vtkImageActor
 #include "vtkImageMapToWindowLevelColors.h"
+#include "vtkImageProperty.h" // window/level control for vtkImageActor
+#include "vtkImageReslice.h"  // 2D slab/MIP filter (vtkImagingCore — already linked)
+#include "vtkMatrix4x4.h"     // 2D image display actor (vtkRenderingImage — already linked)
 
 // VTK DICOM reader — from vtkDICOM 0.8.13 library.
 // The reader itself handles slice sorting by ImagePositionPatient,
@@ -23,14 +21,12 @@
 
 #include <QHBoxLayout>
 
-
-#include "vtkSphereWidget.h"
+#include "MipViewer.h"
+#include "vtkCamera.h"
 #include "vtkCoordinate.h"
 #include "vtkImageData.h"
 #include "vtkProperty.h"
-#include "vtkCamera.h"
-
-#include "vtkImageMapper3D.h"
+#include "vtkSphereWidget.h"
 
 // VTK utilities
 #include "vtkStringArray.h"
@@ -59,33 +55,59 @@
 // Prevents global symbol pollution (the "Library Mindset").
 // ---------------------------------------------------------------------------
 namespace {
-
-/// @brief Callback invoked on mouse wheel events to navigate DICOM slices.
+/// @brief Per-axis configuration for vtkImageReslice sagittal/coronal/axial MIP.
 ///
-/// VTK uses the Observer/Command pattern. The vtkImageViewer2 pointer
-/// is passed via clientData — a standard VTK pattern for bridging
-/// C-style callbacks to C++ objects.
-void scrollCallback(vtkObject * /*caller*/, unsigned long eventId,
-                    void *clientData, void * /*callData*/)
+/// matrix[]    — row-major 4×4 reslice axes. The origin column ([*][3]) is
+///               intentionally zero here; the volume centre is injected at
+///               runtime so this stays constexpr.
+/// slabDimIdx  — which entry of vtkImageData::GetDimensions() gives the
+///               number of voxels to traverse along the projection ray.
+///               (The slab must span the full volume depth on that axis.)
+struct MipAxisConfig
 {
-    auto *viewer = static_cast<vtkImageViewer2 *>(clientData);
-    if (viewer == nullptr) {
-        return;
-    }
+    double matrix[16];
+    int slabDimIdx;
+};
+//  Column layout of each matrix (VTK convention):
+//    col 0 = direction in world space that maps to output image X-axis
+//    col 1 = direction in world space that maps to output image Y-axis
+//    col 2 = projection / slab direction (rays fire along this axis)
+//    col 3 = origin (filled at runtime — zeros here)
+//
+//  Written as rows (row-major storage):
+//    Row i = [ col0[i], col1[i], col2[i], 0 ]
+static constexpr MipAxisConfig kAxisConfigs[] = {
 
-    const int currentSlice = viewer->GetSlice();
-    const int minSlice     = viewer->GetSliceMin();
-    const int maxSlice     = viewer->GetSliceMax();
+    // ── MipAxis::Sagittal (index 0) ──────────────────────────────────────
+    // Project along World X (Left↔Right).
+    //   col0 (out-X) = (0,1,0) = World Y   ← anterior-posterior = horizontal
+    //   col1 (out-Y) = (0,0,1) = World Z   ← superior = up (head at top)
+    //   col2 (proj)  = (1,0,0) = World X
+    {
+        {0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+        0 // slab depth = dims[0]
+    },
 
-    if (eventId == vtkCommand::MouseWheelForwardEvent) {
-        viewer->SetSlice(std::min(currentSlice + 1, maxSlice));
-    }
-    else if (eventId == vtkCommand::MouseWheelBackwardEvent) {
-        viewer->SetSlice(std::max(currentSlice - 1, minSlice));
-    }
+    // ── MipAxis::Coronal (index 1) ───────────────────────────────────────
+    // Project along World Y (Anterior↔Posterior).
+    //   col0 (out-X) = (1,0,0) = World X   ← left-right = horizontal
+    //   col1 (out-Y) = (0,0,1) = World Z   ← superior = up
+    //   col2 (proj)  = (0,1,0) = World Y
+    {
+        {1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+        1 // slab depth = dims[1]
+    },
 
-    viewer->Render();
-}
+    // ── MipAxis::Axial (index 2) ─────────────────────────────────────────
+    // Project along World Z (Superior↔Inferior). Identity rotation.
+    //   col0 (out-X) = (1,0,0) = World X   ← left-right = horizontal
+    //   col1 (out-Y) = (0,1,0) = World Y   ← anterior = up
+    //   col2 (proj)  = (0,0,1) = World Z
+    {
+        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1},
+        2 // slab depth = dims[2]
+    },
+};
 
 } // anonymous namespace
 
@@ -139,6 +161,7 @@ void MainWindow::setupVTKWidget()
 
     m_renderWindow->GetInteractor()->Initialize();
     m_mipRenderWindow->GetInteractor()->Initialize();
+    m_mipViewer = std::make_unique<MipViewer>(m_mipRenderWindow.GetPointer());
 }
 
 void MainWindow::toggleAnnotationMode(bool enabled)
@@ -146,208 +169,6 @@ void MainWindow::toggleAnnotationMode(bool enabled)
     if (m_sphereStyle) {
         m_sphereStyle->SetAnnotationMode(enabled);
     }
-}
-
-void MainWindow::mpiViewer() {
-
-    // using Image slicing
-    if (!m_dicomReader || !m_dicomReader->GetOutput()) {
-        qWarning() << "mpiViewerf; DICOM reader not initialized";
-        return;
-    }
-
-    /* -------------------------------------------------------------------------
-     Step 1: Query the volume's spatial geometry.
-
-     WHY: We need:
-       (a) dims[0]  → the number of voxels along X, which tells us how thick
-                      the slab must be to project through the ENTIRE volume.
-       (b) bounds[] → the world-space extents, from which we derive the center
-                      point that anchors the reslice plane at the volume midpoint.
-     -------------------------------------------------------------------------
-        */
-    vtkImageData *vol = m_dicomReader->GetOutput();
-    int    dims[3];   // [Nx, Ny, Nz] — voxel count per axis
-    double bounds[6]; // [xmin, xmax, ymin, ymax, zmin, zmax] — world space (mm)
-    vol->GetDimensions(dims);
-    vol->GetBounds(bounds);
-
-
-    /* ----------------------
-     * Center of the volume in world (mm) — the reslice plane pivots here.
-     */
-    const double cx = (bounds[0] + bounds[1]) * 0.5;
-    const double cy = (bounds[2] + bounds[3]) * 0.5;
-    const double cz = (bounds[4] + bounds[5]) * 0.5;
-
-  /*-------------------------------------------------------------------------
-     Step 2: Build the reslice axes matrix for a Sagittal MIP.
-
-     vtkMatrix4x4 is a 4×4 matrix stored row-major: element(row, col).
-     Its COLUMNS define the reslice coordinate frame in world space:
-
-       Col 0 (output image X in world) = World Y = (0, 1, 0)  [A-P direction]
-       Col 1 (output image Y in world) = World Z = (0, 0, 1)  [Superior = up]
-       Col 2 (slab/projection axis)    = World X = (1, 0, 0)  [Left-Right axis]
-       Col 3 (origin)                  = (cx, cy, cz)         [volume center]
-
-     Written out as rows (row-major for DeepCopy):
-       Row 0 = [ col0.x, col1.x, col2.x, origin.x ] = [ 0, 0, 1, cx ]
-       Row 1 = [ col0.y, col1.y, col2.y, origin.y ] = [ 1, 0, 0, cy ]
-       Row 2 = [ col0.z, col1.z, col2.z, origin.z ] = [ 0, 1, 0, cz ]
-       Row 3 = [ 0,      0,      0,      1         ]
-
-     Anatomy reference:
-       The sagittal plane divides the body into Left (−X) and Right (+X).
-       Projecting along X gives a side view: A-P (Y) as horizontal axis,
-       Superior (Z) as vertical axis — head at top, feet at bottom.
-     -------------------------------------------------------------------------
-*/
-    static const double sagittalMipElements[16] = {
-        0, 0, 1, 0,   // Row 0 — origin column [0,3] set below
-        1, 0, 0, 0,   // Row 1 — origin column [1,3] set below
-        0, 1, 0, 0,   // Row 2 — origin column [2,3] set below
-        0, 0, 0, 1    // Row 3 — homogeneous
-    };
-
-    /*
-       Inject the volume center as the plane's world-space origin.
-    Without this, the slab would be anchored at (0,0,0) and may miss the data.
-    */
-    vtkNew<vtkMatrix4x4> resliceAxes;
-    resliceAxes->DeepCopy(sagittalMipElements);
-
-
-    /*
-    Inject the volume center as the plane's world-space origin.
-    Without this, the slab would be anchored at (0,0,0) and may miss the data.
-*/
-    resliceAxes ->SetElement(0, 3, cx);
-    resliceAxes ->SetElement(1, 3, cy);
-    resliceAxes ->SetElement(2, 3, cz);
-
-    /* Step 3: Configure vtkImageReslice for a true 2D MIP.
-    //
-    // SetSlabModeToMax()          → MIP: each output pixel = maximum voxel value
-    //                               encountered along the full projection ray.
-    //
-    // SetSlabNumberOfSlices(N)    → N = dims[0] = full count of X voxels.
-    //                               Each slab step ≈ 1 input voxel in X.
-    //                               This ensures rays traverse the ENTIRE volume.
-    //
-    // SetOutputDimensionality(2)  → Output is a FLAT 2D vtkImageData (not a stack).
-    //                               Combined with SetSlabModeToMax, this collapses
-    //                               the slab into a single projection image.
-    //
-    // SetInterpolationModeToLinear() → Sub-voxel accuracy; reduces aliasing at
-    //                               diagonal ray paths through the volume.
-     */
-
-    vtkNew<vtkImageReslice> reslice;
-    reslice->SetInputConnection(m_dicomReader->GetOutputPort());
-    reslice->SetOutputDimensionality(2);
-    reslice->SetResliceAxes(resliceAxes);
-    reslice->SetInterpolationModeToLinear();
-    reslice->SetSlabModeToMax();
-    reslice->SetSlabNumberOfSlices(dims[0]);
-    reslice->Update();
-
-    /* Step 4: Apply window/level via vtkImageMapToWindowLevelColors.
-    //
-    // WHY this instead of vtkImageProperty::SetColorWindow/Level:
-    //   vtkImageProperty W/L relies on the GPU shader path and can silently
-    //   fall back to auto-scaling the full scalar range when no explicit LUT
-    //   is configured. With metal implants stretching the range to ~4000 HU,
-    //   bone at 600 HU maps to only ~40% brightness — effectively invisible.
-    //
-    //   vtkImageMapToWindowLevelColors is a CPU pipeline filter that:
-    //     1. Guaranteed to apply: runs before rendering, not during it.
-    //     2. Outputs UCHAR [0,255]: display is always trivial and correct.
-    //     3. Formula: output = clamp((S - (L - W/2)) / W, 0, 1) * 255
-    //
-    // Bone Window preset (clinical standard):
-    //   W = 2000, L = 300  →  display range: [-700, +1300] HU
-    //
-    //   Air       (-1000 HU) → below window  → BLACK   (background invisible)
-    //   Soft tissue  (50 HU) → 37.5%         → dark grey
-    //   Cortical   (700  HU) → 70%           → clearly visible mid-grey ← BONE!
-    //   Metal     (2500+ HU) → saturated     → WHITE   (implant visible)
-    // -------------------------------------------------------------------------
-        */
-
-
-    vtkNew<vtkImageMapToWindowLevelColors> wlFilter;
-    wlFilter->SetInputConnection(reslice->GetOutputPort());
-    wlFilter->SetWindow(2000.0);
-    wlFilter->SetLevel(300.0);
-    wlFilter->Update();
-
-    /* ------------------------------------------------------------------------
-    // Step 5: Create a 2D renderer and force parallel (orthographic) projection.
-    //
-    // WHY ParallelProjectionOn():
-    //   Perspective projection introduces depth distortion on a flat 2D image.
-    //   Parallel projection is the medically correct display mode — pixel sizes
-    //   are spatially accurate and the image appears undistorted.
-    // -------------------------------------------------------------------------
-*/
-    vtkNew<vtkImageActor>mipActor;
-    mipActor->GetMapper()->SetInputConnection(wlFilter->GetOutputPort());
-
-
-    vtkNew<vtkRenderer> mipRenderer;
-    mipRenderer->AddActor(mipActor);
-    mipRenderer->SetBackground(0.05, 0.05, 0.05);
-    mipRenderer->ResetCamera();
-    mipRenderer->GetActiveCamera()->ParallelProjectionOn();
-
-
-    m_mipRenderWindow->AddRenderer(mipRenderer);
-
-    /*
-            The default style (vtkInteractorStyleTrackballCamera) allows full 3D
-         vtkInteractorStyleImage is the correct medical imaging 2D style
-        */
-
-    vtkNew<vtkInteractorStyleImage> mipStyle;
-    m_mipRenderWindow->GetInteractor()->SetInteractorStyle(mipStyle);
-    m_mipRenderWindow->Render();
-
-
-    /* using Volume Rendering
-    double range[2];
-    m_dicomReader->GetOutput()->GetScalarRange(range);
-
-
-    vtkNew<vtkGPUVolumeRayCastMapper> mipMapper;
-    mipMapper->SetInputConnection(m_dicomReader->GetOutputPort());
-    mipMapper->SetBlendModeToMaximumIntensity();
-
-    vtkNew<vtkVolumeProperty> volProp;
-    volProp->ShadeOff(); // Shading is meaningless in MIP — max value always wins
-
-
-    vtkNew<vtkVolume> mipVolume;
-    mipVolume->SetMapper(mipMapper);
-    mipVolume->SetProperty(volProp);
-
-    vtkNew<vtkRenderer> mipRenderer;
-    mipRenderer->AddVolume(mipVolume);
-
-
-    vtkCamera *cam = mipRenderer->GetActiveCamera();
-    cam->SetPosition(0, -1, 0);   // camera sits on -Y axis (anterior)
-    cam->SetFocalPoint(0, 0, 0);  // looking toward +Y (posterior)
-    cam->SetViewUp(0, 0, 1);      // Z = superior = "up" in coronal
-
-
-    mipRenderer->ResetCamera();
-    mipRenderer->SetBackground(0.05, 0.05, 0.05);
-
-    m_mipRenderWindow->AddRenderer(mipRenderer);
-    m_mipRenderWindow->Render();
-*/
-
 }
 
 void MainWindow::loadDicomDirectory(const QString &directoryPath)
@@ -368,8 +189,6 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     dicomDir->SetDirectoryName(directoryPath.toUtf8().constData());
     dicomDir->SetScanDepth(1);
     dicomDir->Update();
-
-
 
     const int numberOfSeries = dicomDir->GetNumberOfSeries();
     if (numberOfSeries == 0) {
@@ -406,7 +225,13 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
     m_dicomReader->Update();
 
-    mpiViewer();
+    // mpiViewer();
+    // mpiViewer(MipAxis::Coronal);
+    m_mipViewer->setInputData(m_dicomReader->GetOutput());
+
+    // m_mipViewer->viewMip(MipAxis::Sagittal);
+    m_mipViewer->viewMip(MipAxis::Axial);
+    // m_mipViewer->viewMip(MipAxis::Coronal);
 
     // -----------------------------------------------------------------------
     // Step 4: Set up vtkImageViewer2 for 2D slice viewing.
