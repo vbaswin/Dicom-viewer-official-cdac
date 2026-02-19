@@ -74,6 +74,6 @@ private:
     QPushButton *m_annotateButton = nullptr;
 
     vtkNew<vtkGenericOpenGLRenderWindow> m_mipRenderWindow;
-
+    QButtonGroup *m_mipAxisGroup = nullptr;
 };
 #endif // MAINWINDOW_H

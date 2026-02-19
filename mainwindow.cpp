@@ -35,10 +35,12 @@
 #include "vtkTextProperty.h"
 #include "vtkDICOMDirectory.h"
 
+#include <QButtonGroup>
 #include <QDebug>
-#include <QToolBar>
 #include <QDir>
 #include <QStringList>
+#include <QToolBar>
+#include <array>
 
 #include "vtkVolume.h" // 3d actor equivalent
 #include "vtkVolumeProperty.h" // binds transfer functions
@@ -140,7 +142,35 @@ void MainWindow::setupToolBar() {
     connect(m_annotateButton, &QPushButton::toggled,
             this, &MainWindow::toggleAnnotationMode);
     toolbar->addWidget(m_annotateButton);
+
+    toolbar->addSeparator();
+
+    m_mipAxisGroup = new QButtonGroup(this);
+    m_mipAxisGroup->setExclusive(true);
+
+    const std::array<std::pair<MipAxis, QString>, 3> kAxes = {{
+        {MipAxis::Sagittal, "Sagittal"},
+        {MipAxis::Coronal, "Coronal"},
+        {MipAxis::Axial, "Axial"},
+
+    }};
+
+    for (const auto &[axis, label] : kAxes) {
+        auto *btn = new QPushButton(label, this);
+        btn->setCheckable(true);
+        toolbar->addWidget(btn);
+
+        m_mipAxisGroup->addButton(btn, static_cast<int>(axis));
+    }
+
+    m_mipAxisGroup->button(static_cast<int>(MipAxis::Sagittal))->setChecked(true);
+
+    connect(m_mipAxisGroup, &QButtonGroup::idClicked, this, [this](int id) {
+        if (m_mipViewer)
+            m_mipViewer->viewMip(static_cast<MipAxis>(id));
+    });
 }
+
 void MainWindow::setupVTKWidget()
 {
     QWidget *container = new QWidget(this);
@@ -229,8 +259,8 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     // mpiViewer(MipAxis::Coronal);
     m_mipViewer->setInputData(m_dicomReader->GetOutput());
 
-    // m_mipViewer->viewMip(MipAxis::Sagittal);
-    m_mipViewer->viewMip(MipAxis::Axial);
+    m_mipViewer->viewMip(MipAxis::Sagittal);
+    // m_mipViewer->viewMip(MipAxis::Axial);
     // m_mipViewer->viewMip(MipAxis::Coronal);
 
     // -----------------------------------------------------------------------

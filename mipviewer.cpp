@@ -45,7 +45,6 @@ static constexpr AxisConfig kAxisConfigs[] = {
 MipViewer::MipViewer(vtkGenericOpenGLRenderWindow *renderWindow)
     : m_renderWindow(renderWindow)
 {
-    // Wire the static pipeline once.
     // VTK is lazy — no data flows until Update() or Render() is called,
     // so connecting before SetInputConnection() is set is perfectly safe.
     m_wlFilter->SetInputConnection(m_reslice->GetOutputPort());
@@ -62,10 +61,6 @@ MipViewer::MipViewer(vtkGenericOpenGLRenderWindow *renderWindow)
 
     m_renderWindow->AddRenderer(m_renderer);
 
-    // Lock this panel to 2D image interaction.
-    // vtkInteractorStyleImage: pan + zoom only, NO rotation.
-    // The SetInteractorStyle() call increments the style's VTK refcount,
-    // so the local vtkNew going out of scope here does not delete it.
     vtkNew<vtkInteractorStyleImage> style;
     m_renderWindow->GetInteractor()->SetInteractorStyle(style);
 }
