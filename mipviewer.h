@@ -26,10 +26,10 @@ public:
 
     void setInputData(vtkImageData *data);
 
-    /// @brief Recompute and display the MIP for the given axis.
+    // Recompute and display the MIP for the given axis.
     void viewMip(MipAxis axis = MipAxis::Sagittal);
 
-    /// @brief override the window/level
+    // override the window/level
     void setWindowLevel(double window, double level);
 
 private:

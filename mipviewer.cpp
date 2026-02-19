@@ -1,7 +1,7 @@
 #include "mipviewer.h"
 #include "vtkCamera.h"
 #include "vtkImageData.h"
-#include "vtkImageMapper3D.h" // required to call GetMapper()->SetInputConnection()
+#include "vtkImageMapper3D.h"
 #include "vtkInteractorStyleImage.h"
 #include "vtkMatrix4x4.h"
 #include "vtkRenderWindowInteractor.h"
@@ -9,11 +9,8 @@
 namespace {
 
 /// @brief Reslice matrix + slab dimension for one projection axis.
-///
-/// matrix[]   — row-major 4×4. Origin column ([*][3]) is zero here;
-///              the volume centre is injected at runtime in viewMip().
-/// slabDimIdx — index into vtkImageData::GetDimensions() that gives
-///              the voxel count along the projection ray.
+/// matrix[]   - storing the current selected axis matrix
+/// slabDimIdx - storing which axis the matrix belongs to
 struct AxisConfig
 {
     double matrix[16];
@@ -27,16 +24,23 @@ struct AxisConfig
 //   col 3 = origin (filled at runtime)
 static constexpr AxisConfig kAxisConfigs[] = {
 
-    // MipAxis::Sagittal — project along World X (Left↔Right)
-    //   out-X = World Y (A-P),  out-Y = World Z (S-I, head at top)
+    // axis directions :
+    // saggital x - to x +
+    // coronal y - to y +
+    // axial z - to z +
+
+    // Sagittal
+    // looking from  x- to x+ (projection) (1, 0, 0)
+    // ouput image plane will be in the yz plane
+    // output image horizontal axis y- to y+  (0, 1, 0)
+    // output image vertical axis z- to z+  (0, 0 , 1)
+
     {{0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1}, 0},
 
-    // MipAxis::Coronal — project along World Y (Ant↔Post)
-    //   out-X = World X (L-R),  out-Y = World Z (S-I, head at top)
+    // coronal
     {{1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1}, 1},
 
-    // MipAxis::Axial — project along World Z (Sup↔Inf), identity rotation
-    //   out-X = World X (L-R),  out-Y = World Y (A-P)
+    // axial
     {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 2},
 };
 
@@ -45,8 +49,6 @@ static constexpr AxisConfig kAxisConfigs[] = {
 MipViewer::MipViewer(vtkGenericOpenGLRenderWindow *renderWindow)
     : m_renderWindow(renderWindow)
 {
-    // VTK is lazy — no data flows until Update() or Render() is called,
-    // so connecting before SetInputConnection() is set is perfectly safe.
     m_wlFilter->SetInputConnection(m_reslice->GetOutputPort());
     m_wlFilter->SetWindow(m_window);
     m_wlFilter->SetLevel(m_level);
@@ -81,19 +83,17 @@ void MipViewer::setWindowLevel(double window, double level)
 
 void MipViewer::viewMip(MipAxis axis)
 {
-    // GetInput() returns the upstream vtkImageData after the pipeline
-    // has been connected. Safe to call here because setInputConnection()
-    // must have been called before viewMip().
     vtkImageData *vol = vtkImageData::SafeDownCast(m_reslice->GetInput());
     if (!vol) {
         return; // Fail fast — caller forgot setInputConnection()
     }
 
-    int dims[3];
-    double bounds[6];
+    int dims[3];      // the voxel no in each axis
+    double bounds[6]; // the max and min bounds in each axis
     vol->GetDimensions(dims);
     vol->GetBounds(bounds);
 
+    // calculate center from each max and min bounds
     const double cx = (bounds[0] + bounds[1]) * 0.5;
     const double cy = (bounds[2] + bounds[3]) * 0.5;
     const double cz = (bounds[4] + bounds[5]) * 0.5;
@@ -102,14 +102,17 @@ void MipViewer::viewMip(MipAxis axis)
 
     vtkNew<vtkMatrix4x4> resliceAxes;
     resliceAxes->DeepCopy(cfg.matrix);
-    resliceAxes->SetElement(0, 3, cx); // inject volume centre
+    // insierting center to the transilation column
+    resliceAxes->SetElement(0, 3, cx);
     resliceAxes->SetElement(1, 3, cy);
     resliceAxes->SetElement(2, 3, cz);
 
     m_reslice->SetOutputDimensionality(2);
     m_reslice->SetResliceAxes(resliceAxes);
     m_reslice->SetInterpolationModeToLinear();
+    // take max voxel along each ray
     m_reslice->SetSlabModeToMax();
+    // how many vosels deep the volume along slab axis
     m_reslice->SetSlabNumberOfSlices(dims[cfg.slabDimIdx]);
     m_reslice->Update();
 
