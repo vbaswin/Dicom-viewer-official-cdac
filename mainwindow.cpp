@@ -310,7 +310,12 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
         m_drrData->GetScalarRange(range); // range[0] = min, range[1] = max
 
         const double drrLevel = (range[0] + range[1]) * 0.5; // center of range
-        const double drrWindow = (range[1] + range[1]);      // full range = all detail
+
+        // Clamp the lower bound to 0.
+        // CT scanners pad out-of-field voxels with HU < -1000 (e.g. -2048).
+        // After the +1000 shift these become negative and pollute the range minimum.
+        // All meaningful anatomy has sum >= 0, so we anchor the window there.
+        const double drrWindow = (range[1] - std::max(0.0, range[0]));
 
         m_drrImageViewer = vtkSmartPointer<vtkImageViewer2>::New();
         m_drrImageViewer->SetInputData(m_drrData);
@@ -340,7 +345,7 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
             drrStyle->AddObserver(vtkCommand::WindowLevelEvent, wlCallback);
         }
 
-        m_drrImageViewer->SetColorWindow(drrWindow);
+        m_drrImageViewer->SetColorWindow(-drrWindow);
         m_drrImageViewer->SetColorLevel(drrLevel);
         // m_drrImageViewer->SetColorWindow(1000.0);
         // m_drrImageViewer->SetColorLevel(400.0);

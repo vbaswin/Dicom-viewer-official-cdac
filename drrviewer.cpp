@@ -77,7 +77,7 @@ vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
 {
     vtkImageData *vol = m_imageData;
     if (!vol) {
-        return nullptr; // Fail fast — caller forgot setInputConnection()
+        return nullptr; // Fail fast — caller forgot setInputeonnection()
     }
 
     int dims[3];      // the voxel no in each axis
