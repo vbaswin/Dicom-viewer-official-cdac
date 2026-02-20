@@ -35,12 +35,14 @@ QMAKE_LFLAGS_RELEASE                    += /DEBUG
 DEFINES	+= QT_DEPRECATED_WARNINGS
 
 SOURCES += \
+    drrviewer.cpp \
     main.cpp \
     mainwindow.cpp \
     mipviewer.cpp
 
 HEADERS += \
     SphereInteractorStyle.h \
+    drrviewer.h \
     mainwindow.h \
     mipviewer.h \
     precomp.h

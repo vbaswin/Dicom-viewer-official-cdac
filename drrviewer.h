@@ -1,33 +1,32 @@
-#ifndef MIPVIEWER_H
-#define MIPVIEWER_H
+#ifndef DRRVIEWER_H
+#define DRRVIEWER_H
 
 #include "vtkImageReslice.h"
 #include "vtkNew.h"
 
-enum class MipAxis {
+enum class DrrAxis {
     Sagittal = 0,
     Coronal = 1,
     Axial = 2,
 };
 
-class MipViewer
+class DrrViewer
 {
 public:
-    MipViewer() = default;
-    ~MipViewer() = default;
+    DrrViewer() = default;
+    ~DrrViewer() = default;
 
     // Non-copyable — owns VTK pipeline objects with reference semantics.
-    MipViewer(const MipViewer &) = delete;
-    MipViewer &operator=(const MipViewer &) = delete;
+    DrrViewer(const DrrViewer &) = delete;
+    DrrViewer &operator=(const DrrViewer &) = delete;
 
     void setInputData(vtkImageData *data);
 
     // Recompute and display the MIP for the given axis.
-    [[nodiscard]] vtkImageData *viewMip(MipAxis axis = MipAxis::Sagittal);
+    [[nodiscard]] vtkImageData *viewDrr(DrrAxis axis = DrrAxis::Sagittal);
 
 private:
     vtkNew<vtkImageReslice> m_reslice;
     vtkImageData *m_imageData = nullptr;
 };
-
-#endif // MIPVIEWER_H
+#endif // DRRVIEWER_H

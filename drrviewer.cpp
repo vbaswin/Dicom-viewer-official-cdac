@@ -1,4 +1,4 @@
-#include "mipviewer.h"
+#include "drrviewer.h"
 #include "vtkCamera.h"
 #include "vtkImageData.h"
 #include "vtkImageMapper3D.h"
@@ -45,15 +45,14 @@ static constexpr AxisConfig kAxisConfigs[] = {
 
 } // namespace
 
-
-void MipViewer::setInputData(vtkImageData *data)
+void DrrViewer::setInputData(vtkImageData *data)
 {
     m_imageData = data;
     m_reslice->SetInputData(data);
     m_reslice->SetOutputScalarType(VTK_FLOAT);
 }
 
-vtkImageData *MipViewer::viewMip(MipAxis axis)
+vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
 {
     vtkImageData *vol = vtkImageData::SafeDownCast(m_reslice->GetInput());
     if (!vol) {
