@@ -6,6 +6,7 @@
 #include "MipViewer.h"
 #include "QVTKOpenGLNativeWidget.h"
 #include "vtkActor.h"
+#include "vtkCornerAnnotation.h"
 #include "vtkGenericOpenGLRenderWindow.h"
 #include "vtkNew.h"
 #include "vtkRenderer.h"
@@ -72,6 +73,12 @@ private:
     vtkSmartPointer<SphereInteractorStyle> m_sphereStyle;
 
     QPushButton *m_annotateButton = nullptr;
+
+    vtkNew<vtkCornerAnnotation> m_mipAnnotation;
+    static void onMipWindowLevel(vtkObject *caller,
+                                 unsigned long eventId,
+                                 void *clientData,
+                                 void *callData);
 
     vtkNew<vtkGenericOpenGLRenderWindow> m_mipRenderWindow;
     QButtonGroup *m_mipAxisGroup = nullptr;

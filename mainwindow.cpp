@@ -175,6 +175,22 @@ void MainWindow::setupToolBar() {
     });
 }
 
+void MainWindow::onMipWindowLevel(vtkObject *caller,
+                                  unsigned long eventId,
+                                  void *clientData,
+                                  void *callData)
+{
+    auto *self = static_cast<MainWindow *>(clientData);
+    if (!self->m_mipRenderWindow)
+        return;
+
+    const int w = static_cast<int>(self->m_mipImageViewer->GetColorWindow());
+    const int l = static_cast<int>(self->m_mipImageViewer->GetColorLevel());
+
+    const std::string text = "W: " + std::to_string(w) + " L: " + std::to_string(l);
+    self->m_mipAnnotation->SetText(3, text.c_str());
+}
+
 void MainWindow::setupVTKWidget()
 {
     QWidget *container = new QWidget(this);
@@ -272,6 +288,26 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
         m_mipImageViewer->SetInputData(m_mipData);
         m_mipImageViewer->SetRenderWindow(m_mipRenderWindow);
         m_mipImageViewer->SetupInteractor(m_mipRenderWindow->GetInteractor());
+
+        // annotation settings
+
+        m_mipAnnotation->SetLinearFontScaleFactor(2);
+        m_mipAnnotation->SetNonlinearFontScaleFactor(1);
+        m_mipAnnotation->SetMaximumFontSize(16);
+        m_mipAnnotation->GetTextProperty()->SetColor(1.0, 1.0, 0.0);
+
+        m_mipAnnotation->SetText(3, "W: 2000 L: 400");
+        m_mipImageViewer->GetRenderer()->AddViewProp(m_mipAnnotation);
+
+        vtkInteractorStyleImage *mipStyle = vtkInteractorStyleImage::SafeDownCast(
+            m_mipRenderWindow->GetInteractor()->GetInteractorStyle());
+
+        if (mipStyle) {
+            vtkNew<vtkCallbackCommand> wlCallback;
+            wlCallback->SetCallback(MainWindow::onMipWindowLevel);
+            wlCallback->SetClientData(this);
+            mipStyle->AddObserver(vtkCommand::WindowLevelEvent, wlCallback);
+        }
 
         m_mipImageViewer->SetColorWindow(2000.0);
         m_mipImageViewer->SetColorLevel(300.0);
