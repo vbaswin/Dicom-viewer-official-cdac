@@ -5,7 +5,7 @@
 #include "vtkInteractorStyleImage.h"
 #include "vtkMatrix4x4.h"
 
-namespace {
+namespace Mip {
 
 /// @brief Reslice matrix + slab dimension for one projection axis.
 /// matrix[]   - storing the current selected axis matrix
@@ -43,8 +43,7 @@ static constexpr AxisConfig kAxisConfigs[] = {
     {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 2},
 };
 
-} // namespace
-
+} // namespace Mip
 
 void MipViewer::setInputData(vtkImageData *data)
 {
@@ -70,7 +69,7 @@ vtkImageData *MipViewer::viewMip(MipAxis axis)
     const double cy = (bounds[2] + bounds[3]) * 0.5;
     const double cz = (bounds[4] + bounds[5]) * 0.5;
 
-    const auto &cfg = kAxisConfigs[static_cast<int>(axis)];
+    const auto &cfg = Mip::kAxisConfigs[static_cast<int>(axis)];
 
     vtkNew<vtkMatrix4x4> resliceAxes;
     resliceAxes->DeepCopy(cfg.matrix);

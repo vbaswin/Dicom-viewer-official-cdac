@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QPushButton>
+#include "DrrViewer.h"
 #include "MipViewer.h"
 #include "QVTKOpenGLNativeWidget.h"
 #include "vtkActor.h"
@@ -50,21 +51,26 @@ public:
 private slots:
     void toggleAnnotationMode(bool enabled);
 private:
-    std::unique_ptr<MipViewer> m_mipViewer;
     void setupVTKWidget();
     void setupToolBar();
 
-    // --- UI Components ---
-    QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;  // Owned by Qt parent hierarchy
-    QVTKOpenGLNativeWidget *m_mipWidget = nullptr;  // Owned by Qt parent hierarchy
-    vtkImageData *m_mipData = nullptr;              // Owned by Qt parent hierarchy
-
-    vtkNew<vtkRenderer> m_renderer;
-    vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
-
+    QVTKOpenGLNativeWidget *m_vtkWidget = nullptr; // Owned by Qt parent hierarchy
     vtkSmartPointer<vtkImageViewer2> m_imageViewer;
+
+    QVTKOpenGLNativeWidget *m_mipWidget = nullptr; // Owned by Qt parent hierarchy
+    std::unique_ptr<MipViewer> m_mipViewer;
+    QButtonGroup *m_mipAxisGroup = nullptr;
+    vtkImageData *m_mipData = nullptr; // Owned by Qt parent hierarchy
+    vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
     vtkSmartPointer<vtkImageViewer2> m_mipImageViewer;
     vtkSmartPointer<vtkDICOMReader> m_dicomReader;
+
+    QVTKOpenGLNativeWidget *m_drrWidget = nullptr; // Owned by Qt parent hierarchy
+    std::unique_ptr<DrrViewer> m_drrViewer;
+    QButtonGroup *m_drrAxisGroup = nullptr;
+    vtkImageData *m_drrData = nullptr; // Owned by Qt parent hierarchy
+    vtkSmartPointer<vtkImageViewer2> m_drrImageViewer;
+    vtkNew<vtkGenericOpenGLRenderWindow> m_drrRenderWindow;
 
     // state
     int m_minSlice = 0;
@@ -80,7 +86,12 @@ private:
                                  void *clientData,
                                  void *callData);
 
+    vtkNew<vtkCornerAnnotation> m_drrAnnotation;
+    static void onDrrWindowLevel(vtkObject *caller,
+                                 unsigned long eventId,
+                                 void *clientData,
+                                 void *callData);
+
     vtkNew<vtkGenericOpenGLRenderWindow> m_mipRenderWindow;
-    QButtonGroup *m_mipAxisGroup = nullptr;
 };
 #endif // MAINWINDOW_H

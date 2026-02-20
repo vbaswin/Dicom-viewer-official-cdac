@@ -2,6 +2,7 @@
 #define DRRVIEWER_H
 
 #include "vtkImageReslice.h"
+#include "vtkImageShiftScale.h"
 #include "vtkNew.h"
 
 enum class DrrAxis {
@@ -28,5 +29,6 @@ public:
 private:
     vtkNew<vtkImageReslice> m_reslice;
     vtkImageData *m_imageData = nullptr;
+    vtkNew<vtkImageShiftScale> m_huRemap;
 };
 #endif // DRRVIEWER_H

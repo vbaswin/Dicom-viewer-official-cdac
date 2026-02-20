@@ -53,67 +53,6 @@
 
 
 // ---------------------------------------------------------------------------
-// Anonymous namespace for file-local helpers.
-// Prevents global symbol pollution (the "Library Mindset").
-// ---------------------------------------------------------------------------
-namespace {
-/// @brief Per-axis configuration for vtkImageReslice sagittal/coronal/axial MIP.
-///
-/// matrix[]    — row-major 4×4 reslice axes. The origin column ([*][3]) is
-///               intentionally zero here; the volume centre is injected at
-///               runtime so this stays constexpr.
-/// slabDimIdx  — which entry of vtkImageData::GetDimensions() gives the
-///               number of voxels to traverse along the projection ray.
-///               (The slab must span the full volume depth on that axis.)
-struct MipAxisConfig
-{
-    double matrix[16];
-    int slabDimIdx;
-};
-//  Column layout of each matrix (VTK convention):
-//    col 0 = direction in world space that maps to output image X-axis
-//    col 1 = direction in world space that maps to output image Y-axis
-//    col 2 = projection / slab direction (rays fire along this axis)
-//    col 3 = origin (filled at runtime — zeros here)
-//
-//  Written as rows (row-major storage):
-//    Row i = [ col0[i], col1[i], col2[i], 0 ]
-static constexpr MipAxisConfig kAxisConfigs[] = {
-
-    // ── MipAxis::Sagittal (index 0) ──────────────────────────────────────
-    // Project along World X (Left↔Right).
-    //   col0 (out-X) = (0,1,0) = World Y   ← anterior-posterior = horizontal
-    //   col1 (out-Y) = (0,0,1) = World Z   ← superior = up (head at top)
-    //   col2 (proj)  = (1,0,0) = World X
-    {
-        {0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-        0 // slab depth = dims[0]
-    },
-
-    // ── MipAxis::Coronal (index 1) ───────────────────────────────────────
-    // Project along World Y (Anterior↔Posterior).
-    //   col0 (out-X) = (1,0,0) = World X   ← left-right = horizontal
-    //   col1 (out-Y) = (0,0,1) = World Z   ← superior = up
-    //   col2 (proj)  = (0,1,0) = World Y
-    {
-        {1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-        1 // slab depth = dims[1]
-    },
-
-    // ── MipAxis::Axial (index 2) ─────────────────────────────────────────
-    // Project along World Z (Superior↔Inferior). Identity rotation.
-    //   col0 (out-X) = (1,0,0) = World X   ← left-right = horizontal
-    //   col1 (out-Y) = (0,1,0) = World Y   ← anterior = up
-    //   col2 (proj)  = (0,0,1) = World Z
-    {
-        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1},
-        2 // slab depth = dims[2]
-    },
-};
-
-} // anonymous namespace
-
-// ---------------------------------------------------------------------------
 // MainWindow Implementation
 // ---------------------------------------------------------------------------
 
@@ -121,7 +60,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("DICOM Viewer");
-    resize(1024, 768);
+    resize(1920, 1080);
 
     setupToolBar();
     setupVTKWidget();
@@ -173,6 +112,44 @@ void MainWindow::setupToolBar() {
             m_mipImageViewer->Render();
         }
     });
+
+    toolbar->addSeparator();
+    m_drrAxisGroup = new QButtonGroup(this);
+    m_drrAxisGroup->setExclusive(true);
+
+    for (const auto &[axis, label] : kAxes) {
+        auto *btn = new QPushButton(label, this);
+        btn->setCheckable(true);
+        toolbar->addWidget(btn);
+
+        m_drrAxisGroup->addButton(btn, static_cast<int>(axis));
+    }
+
+    m_drrAxisGroup->button(static_cast<int>(DrrAxis::Sagittal))->setChecked(true);
+
+    connect(m_drrAxisGroup, &QButtonGroup::idClicked, this, [this](int id) {
+        m_drrData = m_drrViewer->viewDrr(static_cast<DrrAxis>(id));
+        if (m_drrData) {
+            m_drrImageViewer->SetInputData(m_drrData);
+            m_drrImageViewer->GetRenderer()->ResetCamera();
+            m_drrImageViewer->Render();
+        }
+    });
+}
+void MainWindow::onDrrWindowLevel(vtkObject *caller,
+                                  unsigned long eventId,
+                                  void *clientData,
+                                  void *callData)
+{
+    auto *self = static_cast<MainWindow *>(clientData);
+    if (!self->m_drrRenderWindow)
+        return;
+
+    const int w = static_cast<int>(self->m_drrImageViewer->GetColorWindow());
+    const int l = static_cast<int>(self->m_drrImageViewer->GetColorLevel());
+
+    const std::string text = "W: " + std::to_string(w) + " L: " + std::to_string(l);
+    self->m_drrAnnotation->SetText(3, text.c_str());
 }
 
 void MainWindow::onMipWindowLevel(vtkObject *caller,
@@ -200,21 +177,26 @@ void MainWindow::setupVTKWidget()
 
     m_vtkWidget = new QVTKOpenGLNativeWidget(container);
     m_mipWidget = new QVTKOpenGLNativeWidget(container);
+    m_drrWidget = new QVTKOpenGLNativeWidget(container);
 
     layout->addWidget(m_vtkWidget, 1);
     layout->addWidget(m_mipWidget, 1);
+    layout->addWidget(m_drrWidget, 1);
 
     setCentralWidget(container);
 
     m_vtkWidget->SetRenderWindow(m_renderWindow);
     m_mipWidget->SetRenderWindow(m_mipRenderWindow);
+    m_drrWidget->SetRenderWindow(m_drrRenderWindow);
 
     // m_mipImageViewer->SetRenderWindow(m_mipRenderWindow);
 
     m_renderWindow->GetInteractor()->Initialize();
     m_mipRenderWindow->GetInteractor()->Initialize();
+    m_drrRenderWindow->GetInteractor()->Initialize();
 
     m_mipViewer = std::make_unique<MipViewer>();
+    m_drrViewer = std::make_unique<DrrViewer>();
 }
 
 void MainWindow::toggleAnnotationMode(bool enabled)
@@ -278,7 +260,7 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
     m_dicomReader->Update();
 
-    // ---------------------------------------------------------------------------------m
+    // mipViewer
     m_mipViewer->setInputData(m_dicomReader->GetOutput());
 
     vtkImageData *m_mipData = m_mipViewer->viewMip();
@@ -316,6 +298,55 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
 
         m_mipImageViewer->Render();
         m_mipImageViewer->GetRenderer()->ResetCamera();
+    }
+    m_mipViewer->setInputData(m_dicomReader->GetOutput());
+
+    // drrData
+    m_drrViewer->setInputData(m_dicomReader->GetOutput());
+
+    vtkImageData *m_drrData = m_drrViewer->viewDrr();
+    if (m_drrData) {
+        double range[2];
+        m_drrData->GetScalarRange(range); // range[0] = min, range[1] = max
+
+        const double drrLevel = (range[0] + range[1]) * 0.5; // center of range
+        const double drrWindow = (range[1] + range[1]);      // full range = all detail
+
+        m_drrImageViewer = vtkSmartPointer<vtkImageViewer2>::New();
+        m_drrImageViewer->SetInputData(m_drrData);
+        m_drrImageViewer->SetRenderWindow(m_drrRenderWindow);
+        m_drrImageViewer->SetupInteractor(m_drrRenderWindow->GetInteractor());
+
+        // annotation settings
+
+        m_drrAnnotation->SetLinearFontScaleFactor(2);
+        m_drrAnnotation->SetNonlinearFontScaleFactor(1);
+        m_drrAnnotation->SetMaximumFontSize(16);
+        m_drrAnnotation->GetTextProperty()->SetColor(1.0, 1.0, 0.0);
+
+        const std::string initText = "W: " + std::to_string(static_cast<int>(-drrWindow))
+                                     + " L: " + std::to_string(static_cast<int>(drrLevel));
+        m_drrAnnotation->SetText(3, initText.c_str());
+
+        m_drrImageViewer->GetRenderer()->AddViewProp(m_drrAnnotation);
+
+        vtkInteractorStyleImage *drrStyle = vtkInteractorStyleImage::SafeDownCast(
+            m_drrRenderWindow->GetInteractor()->GetInteractorStyle());
+
+        if (drrStyle) {
+            vtkNew<vtkCallbackCommand> wlCallback;
+            wlCallback->SetCallback(MainWindow::onDrrWindowLevel);
+            wlCallback->SetClientData(this);
+            drrStyle->AddObserver(vtkCommand::WindowLevelEvent, wlCallback);
+        }
+
+        m_drrImageViewer->SetColorWindow(drrWindow);
+        m_drrImageViewer->SetColorLevel(drrLevel);
+        // m_drrImageViewer->SetColorWindow(1000.0);
+        // m_drrImageViewer->SetColorLevel(400.0);
+
+        m_drrImageViewer->Render();
+        m_drrImageViewer->GetRenderer()->ResetCamera();
     }
 
     // -----------------------------------------------------------------------

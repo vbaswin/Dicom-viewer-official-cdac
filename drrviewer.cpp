@@ -5,7 +5,7 @@
 #include "vtkInteractorStyleImage.h"
 #include "vtkMatrix4x4.h"
 
-namespace {
+namespace Drr {
 
 /// @brief Reslice matrix + slab dimension for one projection axis.
 /// matrix[]   - storing the current selected axis matrix
@@ -43,18 +43,39 @@ static constexpr AxisConfig kAxisConfigs[] = {
     {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, 2},
 };
 
-} // namespace
+} // namespace Drr
 
 void DrrViewer::setInputData(vtkImageData *data)
 {
     m_imageData = data;
-    m_reslice->SetInputData(data);
+
+    /* ── Stage 1: HU → attenuation remapping ────────────────────────────────
+    //
+    // Raw CT HU values:  air=-1000, water=0, bone=+1000
+    // In real X-ray physics, air is TRANSPARENT (μ=0), not negative.
+    // Naively summing raw HU makes air contribute −1000 per slice,
+    // pulling the entire DRR into massive negative values → unusable image.
+    //
+    // Fix: shift every voxel by +1000 BEFORE summing.
+    //   air  (HU=−1000) → 0     ← transparent, contributes nothing ✓
+    //   water(HU=    0) → 1000  ← baseline attenuation ✓
+    //   bone (HU=+1000) → 2000  ← twice water, dense ✓
+    //
+    // This is the linearised Beer-Lambert remapping:
+    //   μ ∝ (HU + 1000)
+    */
+    m_huRemap->SetInputData(data);
+    m_huRemap->SetShift(1000.0);
+    m_huRemap->SetScale(1.0);
+    m_huRemap->SetOutputScalarTypeToFloat();
+
+    m_reslice->SetInputConnection(m_huRemap->GetOutputPort());
     m_reslice->SetOutputScalarType(VTK_FLOAT);
 }
 
 vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
 {
-    vtkImageData *vol = vtkImageData::SafeDownCast(m_reslice->GetInput());
+    vtkImageData *vol = m_imageData;
     if (!vol) {
         return nullptr; // Fail fast — caller forgot setInputConnection()
     }
@@ -69,7 +90,7 @@ vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
     const double cy = (bounds[2] + bounds[3]) * 0.5;
     const double cz = (bounds[4] + bounds[5]) * 0.5;
 
-    const auto &cfg = kAxisConfigs[static_cast<int>(axis)];
+    const auto &cfg = Drr::kAxisConfigs[static_cast<int>(axis)];
 
     vtkNew<vtkMatrix4x4> resliceAxes;
     resliceAxes->DeepCopy(cfg.matrix);
@@ -81,8 +102,8 @@ vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
     m_reslice->SetOutputDimensionality(2);
     m_reslice->SetResliceAxes(resliceAxes);
     m_reslice->SetInterpolationModeToLinear();
-    // take max voxel along each ray
-    m_reslice->SetSlabModeToMax();
+    // sum through voxels for each ray
+    m_reslice->SetSlabModeToSum();
     // how many vosels deep the volume along slab axis
     m_reslice->SetSlabNumberOfSlices(dims[cfg.slabDimIdx]);
     m_reslice->Update();
