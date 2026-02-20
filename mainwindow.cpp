@@ -166,8 +166,12 @@ void MainWindow::setupToolBar() {
     m_mipAxisGroup->button(static_cast<int>(MipAxis::Sagittal))->setChecked(true);
 
     connect(m_mipAxisGroup, &QButtonGroup::idClicked, this, [this](int id) {
-        if (m_mipViewer)
-            m_mipViewer->viewMip(static_cast<MipAxis>(id));
+        m_mipData = m_mipViewer->viewMip(static_cast<MipAxis>(id));
+        if (m_mipData) {
+            m_mipImageViewer->SetInputData(m_mipData);
+            m_mipImageViewer->GetRenderer()->ResetCamera();
+            m_mipImageViewer->Render();
+        }
     });
 }
 
@@ -189,9 +193,12 @@ void MainWindow::setupVTKWidget()
     m_vtkWidget->SetRenderWindow(m_renderWindow);
     m_mipWidget->SetRenderWindow(m_mipRenderWindow);
 
+    // m_mipImageViewer->SetRenderWindow(m_mipRenderWindow);
+
     m_renderWindow->GetInteractor()->Initialize();
     m_mipRenderWindow->GetInteractor()->Initialize();
-    m_mipViewer = std::make_unique<MipViewer>(m_mipRenderWindow.GetPointer());
+
+    m_mipViewer = std::make_unique<MipViewer>();
 }
 
 void MainWindow::toggleAnnotationMode(bool enabled)
@@ -255,13 +262,25 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
     m_dicomReader->SetFileNames(fileNames);  // ← Direct! No conversion!
     m_dicomReader->Update();
 
-    // mpiViewer();
-    // mpiViewer(MipAxis::Coronal);
+    // ---------------------------------------------------------------------------------m
     m_mipViewer->setInputData(m_dicomReader->GetOutput());
 
-    m_mipViewer->viewMip(MipAxis::Sagittal);
-    // m_mipViewer->viewMip(MipAxis::Axial);
-    // m_mipViewer->viewMip(MipAxis::Coronal);
+    vtkImageData *m_mipData = m_mipViewer->viewMip();
+    if (m_mipData) {
+        m_mipImageViewer = vtkSmartPointer<vtkImageViewer2>::New();
+
+        m_mipImageViewer->SetInputData(m_mipData);
+        m_mipImageViewer->SetRenderWindow(m_mipRenderWindow);
+        m_mipImageViewer->SetupInteractor(m_mipRenderWindow->GetInteractor());
+
+        m_mipImageViewer->SetColorWindow(2000.0);
+        m_mipImageViewer->SetColorLevel(300.0);
+        // m_mipImageViewer->SetColorWindow(1000.0);
+        // m_mipImageViewer->SetColorLevel(400.0);
+
+        m_mipImageViewer->Render();
+        m_mipImageViewer->GetRenderer()->ResetCamera();
+    }
 
     // -----------------------------------------------------------------------
     // Step 4: Set up vtkImageViewer2 for 2D slice viewing.

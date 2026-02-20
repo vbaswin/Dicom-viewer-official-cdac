@@ -4,7 +4,6 @@
 #include "vtkImageMapper3D.h"
 #include "vtkInteractorStyleImage.h"
 #include "vtkMatrix4x4.h"
-#include "vtkRenderWindowInteractor.h"
 
 namespace {
 
@@ -46,26 +45,6 @@ static constexpr AxisConfig kAxisConfigs[] = {
 
 } // namespace
 
-MipViewer::MipViewer(vtkGenericOpenGLRenderWindow *renderWindow)
-    : m_renderWindow(renderWindow)
-{
-    m_wlFilter->SetInputConnection(m_reslice->GetOutputPort());
-    m_wlFilter->SetWindow(m_window);
-    m_wlFilter->SetLevel(m_level);
-
-    m_mipActor->GetMapper()->SetInputConnection(m_wlFilter->GetOutputPort());
-
-    m_renderer->AddActor(m_mipActor);
-    m_renderer->SetBackground(0.05, 0.05, 0.05);
-    // Parallel projection is mandatory for 2D medical images —
-    // perspective would introduce depth distortion on a flat plane.
-    m_renderer->GetActiveCamera()->ParallelProjectionOn();
-
-    m_renderWindow->AddRenderer(m_renderer);
-
-    vtkNew<vtkInteractorStyleImage> style;
-    m_renderWindow->GetInteractor()->SetInteractorStyle(style);
-}
 
 void MipViewer::setInputData(vtkImageData *data)
 {
@@ -73,19 +52,11 @@ void MipViewer::setInputData(vtkImageData *data)
     m_reslice->SetInputData(data);
 }
 
-void MipViewer::setWindowLevel(double window, double level)
-{
-    m_window = window;
-    m_level = level;
-    m_wlFilter->SetWindow(m_window);
-    m_wlFilter->SetLevel(m_level);
-}
-
-void MipViewer::viewMip(MipAxis axis)
+vtkImageData *MipViewer::viewMip(MipAxis axis)
 {
     vtkImageData *vol = vtkImageData::SafeDownCast(m_reslice->GetInput());
     if (!vol) {
-        return; // Fail fast — caller forgot setInputConnection()
+        return nullptr; // Fail fast — caller forgot setInputConnection()
     }
 
     int dims[3];      // the voxel no in each axis
@@ -116,6 +87,5 @@ void MipViewer::viewMip(MipAxis axis)
     m_reslice->SetSlabNumberOfSlices(dims[cfg.slabDimIdx]);
     m_reslice->Update();
 
-    m_renderer->ResetCamera();
-    m_renderWindow->Render();
+    return m_reslice->GetOutput();
 }

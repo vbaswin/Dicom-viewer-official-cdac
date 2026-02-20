@@ -53,16 +53,16 @@ private:
     void setupVTKWidget();
     void setupToolBar();
 
-
-
     // --- UI Components ---
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;  // Owned by Qt parent hierarchy
     QVTKOpenGLNativeWidget *m_mipWidget = nullptr;  // Owned by Qt parent hierarchy
+    vtkImageData *m_mipData = nullptr;              // Owned by Qt parent hierarchy
 
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
 
     vtkSmartPointer<vtkImageViewer2> m_imageViewer;
+    vtkSmartPointer<vtkImageViewer2> m_mipImageViewer;
     vtkSmartPointer<vtkDICOMReader> m_dicomReader;
 
     // state
