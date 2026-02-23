@@ -16,11 +16,6 @@
 
 #include <vtkAutoInit.h>
 
-// Core rendering
-VTK_MODULE_INIT(vtkRenderingOpenGL2);
-VTK_MODULE_INIT(vtkInteractionStyle);
-VTK_MODULE_INIT(vtkRenderingFreeType);
-
 
 // Forward-declare VTK types to keep the header lightweight.
 // Consumers of MainWindow don't need full VTK definitions — this is
@@ -31,8 +26,6 @@ class vtkRenderWindowInteractor;
 class SphereInteractorStyle;
 
 
-// Volume rendering (CRITICAL)
-VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;

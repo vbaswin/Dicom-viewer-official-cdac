@@ -15,7 +15,6 @@
 #include <vtkCoordinate.h>
 #include <vtkSmartPointer.h>
 #include <vtkTubeFilter.h>
-#include "mainwindow.h"
 
 #include <vector>
 #include <vtkImageViewer2.h>

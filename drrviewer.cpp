@@ -49,27 +49,15 @@ void DrrViewer::setInputData(vtkImageData *data)
 {
     m_imageData = data;
 
-    /* ── Stage 1: HU → attenuation remapping ────────────────────────────────
-    //
-    // Raw CT HU values:  air=-1000, water=0, bone=+1000
-    // In real X-ray physics, air is TRANSPARENT (μ=0), not negative.
-    // Naively summing raw HU makes air contribute −1000 per slice,
-    // pulling the entire DRR into massive negative values → unusable image.
-    //
-    // Fix: shift every voxel by +1000 BEFORE summing.
-    //   air  (HU=−1000) → 0     ← transparent, contributes nothing ✓
-    //   water(HU=    0) → 1000  ← baseline attenuation ✓
-    //   bone (HU=+1000) → 2000  ← twice water, dense ✓
-    //
-    // This is the linearised Beer-Lambert remapping:
-    //   μ ∝ (HU + 1000)
-    */
+    // /* with shift
     m_huRemap->SetInputData(data);
     m_huRemap->SetShift(1000.0);
     m_huRemap->SetScale(1.0);
     m_huRemap->SetOutputScalarTypeToFloat();
-
     m_reslice->SetInputConnection(m_huRemap->GetOutputPort());
+    // */
+
+    // m_reslice->SetInputData(data);
     m_reslice->SetOutputScalarType(VTK_FLOAT);
 }
 
@@ -96,6 +84,7 @@ vtkImageData *DrrViewer::viewDrr(DrrAxis axis)
     resliceAxes->DeepCopy(cfg.matrix);
     // insierting center to the transilation column
     resliceAxes->SetElement(0, 3, cx);
+
     resliceAxes->SetElement(1, 3, cy);
     resliceAxes->SetElement(2, 3, cz);
 

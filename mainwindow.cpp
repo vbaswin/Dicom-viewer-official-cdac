@@ -50,7 +50,10 @@
 #include "vtkPiecewiseFunction.h" // opacity map
 #include "vtkColorTransferFunction.h" // color ramp
 
-
+VTK_MODULE_INIT(vtkRenderingOpenGL2);
+VTK_MODULE_INIT(vtkInteractionStyle);
+VTK_MODULE_INIT(vtkRenderingFreeType);
+VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
 
 // ---------------------------------------------------------------------------
 // MainWindow Implementation
@@ -345,7 +348,7 @@ void MainWindow::loadDicomDirectory(const QString &directoryPath)
             drrStyle->AddObserver(vtkCommand::WindowLevelEvent, wlCallback);
         }
 
-        m_drrImageViewer->SetColorWindow(-drrWindow);
+        m_drrImageViewer->SetColorWindow(drrWindow);
         m_drrImageViewer->SetColorLevel(drrLevel);
         // m_drrImageViewer->SetColorWindow(1000.0);
         // m_drrImageViewer->SetColorLevel(400.0);
