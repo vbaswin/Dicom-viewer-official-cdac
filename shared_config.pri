@@ -1,8 +1,5 @@
+
 QT       += core gui widgets opengl
-
-TARGET = DICOMViewer
-TEMPLATE = app
-
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -33,61 +30,46 @@ QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO   += /Od
 QMAKE_LFLAGS_RELEASE                    += /DEBUG
 
 DEFINES	+= QT_DEPRECATED_WARNINGS
+VTK_INSTALL = C:\Users\cdac\Projects\VTK8.2\install
 
-SOURCES += \
-    drrviewer.cpp \
-    main.cpp \
-    mainwindow.cpp \
-    mipviewer.cpp
+INCLUDEPATH += $$VTK_INSTALL/include/vtk-8.2
+DEPENDPATH  += $$VTK_INSTALL/include/vtk-8.2
+QMAKE_LIBDIR += $$VTK_INSTALL/lib
 
-HEADERS += \
-    SphereInteractorStyle.h \
-    drrviewer.h \
-    mainwindow.h \
-    mipviewer.h \
-    precomp.h
+LIBS += \
+-lvtkCommonCore-8.2 \
+-lvtkCommonDataModel-8.2 \
+-lvtkCommonExecutionModel-8.2 \
+-lvtkCommonMath-8.2 \
+-lvtkCommonTransforms-8.2 \
+-lvtkCommonMisc-8.2 \
+-lvtkRenderingCore-8.2 \
+-lvtkRenderingImage-8.2 \
+-lvtkRenderingAnnotation-8.2 \
+-lvtkRenderingOpenGL2-8.2 \
+-lvtkRenderingFreeType-8.2 \
+-lvtkInteractionStyle-8.2 \
+-lvtkInteractionImage-8.2 \
+-lvtkGUISupportQt-8.2 \
+-lvtkFiltersSources-8.2 \
+-lvtkIOImage-8.2 \
+-lvtkIOCore-8.2 \
+-lvtkImagingCore-8.2 \
+-lvtkImagingColor-8.2 \
+-lvtkInteractionWidgets-8.2 \
+-lvtkFiltersCore-8.2 \
+-lvtkRenderingVolume-8.2 \
+-lvtkRenderingVolumeOpenGL2-8.2
+
+# --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
+VTKDICOM_INSTALL = C:\Users\cdac\Projects\VTKDicom\install
+
+INCLUDEPATH += $$VTKDICOM_INSTALL/include
+QMAKE_LIBDIR += $$VTKDICOM_INSTALL/lib
+
+LIBS += -lvtkDICOM-8.2.0
 
 
-
-# --- VTK 8.2 (MSVC 2019-compatible x64 build) ---
- VTK_INSTALL = C:\Users\cdac\Projects\VTK8.2\install
-
- INCLUDEPATH += $$VTK_INSTALL/include/vtk-8.2
- DEPENDPATH  += $$VTK_INSTALL/include/vtk-8.2
- QMAKE_LIBDIR += $$VTK_INSTALL/lib
-
- LIBS += \
-     -lvtkCommonCore-8.2 \
-     -lvtkCommonDataModel-8.2 \
-     -lvtkCommonExecutionModel-8.2 \
-     -lvtkCommonMath-8.2 \
-     -lvtkCommonTransforms-8.2 \
-     -lvtkCommonMisc-8.2 \
-     -lvtkRenderingCore-8.2 \
-     -lvtkRenderingImage-8.2 \
-     -lvtkRenderingAnnotation-8.2 \
-     -lvtkRenderingOpenGL2-8.2 \
-     -lvtkRenderingFreeType-8.2 \
-     -lvtkInteractionStyle-8.2 \
-     -lvtkInteractionImage-8.2 \
-     -lvtkGUISupportQt-8.2 \
-     -lvtkFiltersSources-8.2 \
-     -lvtkIOImage-8.2 \
-     -lvtkIOCore-8.2 \
-     -lvtkImagingCore-8.2 \
-     -lvtkImagingColor-8.2 \
-     -lvtkInteractionWidgets-8.2 \
-     -lvtkFiltersCore-8.2 \
-     -lvtkRenderingVolume-8.2 \
-      -lvtkRenderingVolumeOpenGL2-8.2
-
- # --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
- VTKDICOM_INSTALL = C:\Users\cdac\Projects\VTKDicom\install
-
- INCLUDEPATH += $$VTKDICOM_INSTALL/include
- QMAKE_LIBDIR += $$VTKDICOM_INSTALL/lib
-
- LIBS += -lvtkDICOM-8.2.0
 
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
