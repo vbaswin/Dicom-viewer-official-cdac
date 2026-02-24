@@ -71,32 +71,21 @@ void MainWindow::setupVtk()
 
     m_prop->SetScalarOpacity(m_opacityPiecewiseFunction);
     m_prop->SetColor(m_colorTransferFunction);
-    // m_prop->ShadeOn();
-    m_prop->ShadeOff();
+    m_prop->ShadeOn();
     m_prop->SetInterpolationTypeToLinear();
 
     m_mapper->SetInputConnection(m_reader->GetOutputPort());
-    m_mapper->SetBlendModeToComposite();
 
     m_volume->SetMapper(m_mapper);
     m_volume->SetProperty(m_prop);
 
     m_renderer->AddVolume(m_volume);
-    m_renderer->SetBackground(0.05, 0.5, 0.05);
 
-    // m_mapper->Update();
-
-    // m_renderWindow->SetColorWindow()
-    m_renderWindow->SetMultiSamples(0);
     m_renderWindow->AddRenderer(m_renderer);
 
     m_vtkWidget->SetRenderWindow(m_renderWindow);
-    // m_vtkWidget->GetInteractor()->Initialize();
-    // m_renderWindow->SetInteractor(m_interactor);
-    // m_interactor->Initialize();
 
     m_renderer->ResetCamera();
-    // m_renderWindow->Render();
 }
 
 void MainWindow::setupUI()
