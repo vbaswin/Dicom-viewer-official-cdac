@@ -8,6 +8,7 @@
 #include "vtkColorTransferFunction.h"
 #include "vtkDICOMDirectory.h"
 #include "vtkDICOMReader.h"
+#include "vtkFixedPointVolumeRayCastMapper.h"
 #include "vtkGPUVolumeRayCastMapper.h"
 #include "vtkGenericOpenGLRenderWindow.h"
 #include "vtkImageData.h"
@@ -18,6 +19,7 @@
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
 #include "vtkSmartVolumeMapper.h"
+#include "vtkSphereSource.h"
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
 #include <iostream>
@@ -38,16 +40,13 @@ private:
     vtkNew<vtkPiecewiseFunction> m_opacityPiecewiseFunction;
     vtkNew<vtkColorTransferFunction> m_colorTransferFunction;
     vtkNew<vtkVolumeProperty> m_prop;
-    vtkNew<vtkSmartVolumeMapper> m_mapper;
-    // vtkNew<vtkGPUVolumeRayCastMapper> m_mapper;
+    // vtkNew<vtkSmartVolumeMapper> m_mapper;
+    vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
     vtkNew<vtkVolume> m_volume;
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
-    vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindowImageViewer;
     vtkNew<vtkRenderWindowInteractor> m_interactor;
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;
-
-    QVTKOpenGLNativeWidget *m_vtkWidgetImageViewer = nullptr;
 };
 
 #endif // MAINWINDOW_H

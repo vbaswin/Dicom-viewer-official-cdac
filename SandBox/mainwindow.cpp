@@ -1,5 +1,7 @@
 #include "mainwindow.h"
+#include "vtkCamera.h"
 #include "vtkImageViewer2.h"
+#include "vtkSphereSource.h"
 
 const char *dirPath = "C:/Users/cdac/Projects/SE2dcm";
 
@@ -85,13 +87,16 @@ void MainWindow::setupVtk()
     // m_mapper->Update();
 
     // m_renderWindow->SetColorWindow()
+    m_renderWindow->SetMultiSamples(0);
     m_renderWindow->AddRenderer(m_renderer);
-    m_vtkWidget->SetRenderWindow(m_renderWindow);
-    m_renderWindow->SetInteractor(m_interactor);
-    m_interactor->Initialize();
 
-    m_renderWindow->Render();
+    m_vtkWidget->SetRenderWindow(m_renderWindow);
+    // m_vtkWidget->GetInteractor()->Initialize();
+    // m_renderWindow->SetInteractor(m_interactor);
+    // m_interactor->Initialize();
+
     m_renderer->ResetCamera();
+    // m_renderWindow->Render();
 }
 
 void MainWindow::setupUI()

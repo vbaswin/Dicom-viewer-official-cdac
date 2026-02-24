@@ -1,6 +1,6 @@
 #include <QDebug>
 #include <QSurfaceFormat>
-#include "QVTKOpenGLNativeWidget.h"
+#include <QVTKOpenGLNativeWidget.h>
 #include "QVTKOpenGLWidget.h"
 #include "mainwindow.h"
 #include <iostream>
