@@ -175,7 +175,7 @@ void MainWindow::setupVTKWidget()
 {
     QWidget *container = new QWidget(this);
     QHBoxLayout *layout = new QHBoxLayout(container);
-    layout->setContentsMargins(0,0, 0, 0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
     m_vtkWidget = new QVTKOpenGLNativeWidget(container);

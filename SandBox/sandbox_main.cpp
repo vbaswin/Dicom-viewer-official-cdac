@@ -1,19 +1,22 @@
 #include <QDebug>
-#include "vtkDICOMReader.h"
-#include "vtkGPUVolumeRayCastMapper.h"
-#include "vtkImageData.h"
-#include "vtkSmartPointer.h"
+#include <QSurfaceFormat>
+#include "QVTKOpenGLNativeWidget.h"
+#include "QVTKOpenGLWidget.h"
+#include "mainwindow.h"
 #include <iostream>
+#include <qapplication.h>
 
-const char *filefname = "C:/Users/cdac/Projects/SE2dcm";
+#include <vtkAutoInit.h>
+VTK_MODULE_INIT(vtkRenderingOpenGL2);
+VTK_MODULE_INIT(vtkInteractionStyle);
+VTK_MODULE_INIT(vtkRenderingFreeType);
+VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
 
-vtkImageData *getImageData()
+int main(int argc, char *argv[])
 {
-    vtkDICOMReader *reader = vtkSmartPointer<vtkDICOMReader>::New();
-    return reader->GetOutput();
-}
-
-int main()
-{
-    // qDebug() << "hello";
+    QSurfaceFormat::setDefaultFormat(QVTKOpenGLNativeWidget::defaultFormat());
+    QApplication app(argc, argv);
+    MainWindow w;
+    w.show();
+    return app.exec();
 }
