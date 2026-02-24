@@ -59,7 +59,8 @@ LIBS += \
 -lvtkInteractionWidgets-8.2 \
 -lvtkFiltersCore-8.2 \
 -lvtkRenderingVolume-8.2 \
--lvtkRenderingVolumeOpenGL2-8.2
+-lvtkRenderingVolumeOpenGL2-8.2 \
+-lvtkImagingHybrid-8.2
 
 # --- vtkDICOM 0.8.13 (MSVC 2019-compatible x64 build) ---
 VTKDICOM_INSTALL = C:\Users\cdac\Projects\VTKDicom\install

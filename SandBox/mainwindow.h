@@ -42,11 +42,15 @@ private:
     vtkNew<vtkVolumeProperty> m_prop;
     // vtkNew<vtkSmartVolumeMapper> m_mapper;
     vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
+    // vtkNew<vtkGPUVolumeRayCastMapper> m_mapper;
     vtkNew<vtkVolume> m_volume;
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
     vtkNew<vtkRenderWindowInteractor> m_interactor;
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;
+
+    vtkNew<vtkVolume> m_vol;
+    vtkNew<vtkGPUVolumeRayCastMapper> m_mapperVol;
 };
 
 #endif // MAINWINDOW_H
