@@ -13,6 +13,7 @@
 #include "vtkGenericOpenGLRenderWindow.h"
 #include "vtkImageData.h"
 #include "vtkNew.h"
+#include "vtkOpenGLGPUVolumeRayCastMapper.h"
 #include "vtkPiecewiseFunction.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
@@ -41,16 +42,15 @@ private:
     vtkNew<vtkColorTransferFunction> m_colorTransferFunction;
     vtkNew<vtkVolumeProperty> m_prop;
     // vtkNew<vtkSmartVolumeMapper> m_mapper;
-    vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
+    // vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
     // vtkNew<vtkGPUVolumeRayCastMapper> m_mapper;
+    vtkNew<vtkOpenGLGPUVolumeRayCastMapper> m_mapper;
     vtkNew<vtkVolume> m_volume;
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
     vtkNew<vtkRenderWindowInteractor> m_interactor;
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;
 
-    vtkNew<vtkVolume> m_vol;
-    vtkNew<vtkGPUVolumeRayCastMapper> m_mapperVol;
 };
 
 #endif // MAINWINDOW_H
