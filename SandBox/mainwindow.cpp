@@ -56,21 +56,24 @@ void MainWindow::setupVtk()
     m_reader->GetOutput()->GetScalarRange(range);
     // qDebug() << "Dicom scalar range: " << range[0] << " to " << range[1];
 
-    // int *dims = m_reader->GetOutput()->GetDimensions();
+    int *dims = m_reader->GetOutput()->GetDimensions();
     // qDebug() << "Dimensions " << dims[0] << dims[1] << dims[2];
     m_mapper->SetInputConnection(m_reader->GetOutputPort());
+    m_mapper->AutoAdjustSampleDistancesOn();
     // m_mapper->AutoAdjustSampleDistancesOff();
     // m_mapper->SetSampleDistance(0.5);
     m_mapper->SetBlendModeToComposite();
+    // m_mapper->SetBlendModeToIsoSurface();
+    // m_mapper->SetRenderToImage(true);
     // m_mapper->SetBlendModeToMaximumIntensity();
 
     m_opacityPiecewiseFunction->RemoveAllPoints();
-    m_opacityPiecewiseFunction->AddPoint(range[0], 0.0); // water
-    m_opacityPiecewiseFunction->AddPoint(-1000, 0.0);    // water
-    m_opacityPiecewiseFunction->AddPoint(0, 0.05);       // water
-    m_opacityPiecewiseFunction->AddPoint(300, 0.2);      // bone
-    m_opacityPiecewiseFunction->AddPoint(700, 0.7);      // bone
-    m_opacityPiecewiseFunction->AddPoint(1500, 1.00);    // dense bone
+    m_opacityPiecewiseFunction->AddPoint(range[0], 0.0);  // water
+    m_opacityPiecewiseFunction->AddPoint(-1000, 0.0);     // water
+    m_opacityPiecewiseFunction->AddPoint(0, 0.05);        // water
+    m_opacityPiecewiseFunction->AddPoint(300, 0.2);       // bone
+    m_opacityPiecewiseFunction->AddPoint(700, 0.7);       // bone
+    m_opacityPiecewiseFunction->AddPoint(range[1], 1.00); // dense bone
 
     m_colorTransferFunction->RemoveAllPoints();
     m_colorTransferFunction->AddRGBPoint(range[0], 0.0, 0.0, 0.0);
@@ -78,8 +81,8 @@ void MainWindow::setupVtk()
 
     m_prop->SetScalarOpacity(m_opacityPiecewiseFunction);
     m_prop->SetColor(m_colorTransferFunction);
-    m_prop->ShadeOn();
-    m_prop->SetInterpolationTypeToLinear();
+    m_prop->ShadeOff();
+    // m_prop->SetInterpolationTypeToLinear();
 
     m_volume->SetMapper(m_mapper);
     m_volume->SetProperty(m_prop);
@@ -89,13 +92,13 @@ void MainWindow::setupVtk()
     // m_camera->SetFocalPoint(0, 0, 0);
 
     m_renderer->AddVolume(m_volume);
-    m_renderer->SetActiveCamera(m_camera);
-    m_renderer->SetBackground(23.0 / 255.0, 146.0 / 255.0, 153.0 / 255.0);
+    // m_renderer->SetActiveCamera(m_camera);
+    // m_renderer->SetBackground(23.0 / 255.0, 146.0 / 255.0, 153.0 / 255.0);
 
-    // m_camera->Azimuth(90.0);
-    // m_camera->Elevation(30.0);
-    // m_camera->Dolly(1.5);
-    // m_renderer->ResetCameraClippingRange();
+    m_camera->Azimuth(0.0);
+    m_camera->Elevation(30.0);
+    m_camera->Dolly(1.5);
+    m_renderer->ResetCameraClippingRange();
 
     m_renderWindow->AddRenderer(m_renderer);
     m_renderWindow->SetWindowName("openglraycastmapper");
