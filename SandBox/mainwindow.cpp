@@ -1,4 +1,8 @@
 #include "mainwindow.h"
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSlider>
+#include <QVBoxLayout>
 #include "vtkCamera.h"
 #include "vtkImageViewer2.h"
 #include "vtkSampleFunction.h"
@@ -12,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     m_vtkWidget = new QVTKOpenGLNativeWidget(this);
     qDebug() << "Constructor";
-    this->resize(1980, 1080);
+    this->resize(1920, 1080);
     setupUI();
     setupVtk();
 }
@@ -112,5 +116,21 @@ void MainWindow::setupVtk()
 
 void MainWindow::setupUI()
 {
-    this->setCentralWidget(m_vtkWidget);
+    QWidget *mainWidget = new QWidget(this);
+    this->setCentralWidget(mainWidget);
+
+    QHBoxLayout *mainLayout = new QHBoxLayout(mainWidget);
+    mainLayout->addWidget(m_vtkWidget, 1);
+
+    QWidget *rightControlPanel = new QWidget(mainWidget);
+    QVBoxLayout *controlsLayout = new QVBoxLayout(rightControlPanel);
+
+    mainLayout->addWidget(rightControlPanel);
+
+    QLabel *windowLabel = new QLabel("Window size", rightControlPanel);
+    QSlider *slider = new QSlider(Qt::Horizontal, rightControlPanel);
+    controlsLayout->addWidget(windowLabel);
+    controlsLayout->addWidget(slider);
+    slider->setMinimumWidth(150);
+    controlsLayout->addStretch();
 }
