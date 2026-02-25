@@ -58,6 +58,11 @@ void MainWindow::setupVtk()
 
     // int *dims = m_reader->GetOutput()->GetDimensions();
     // qDebug() << "Dimensions " << dims[0] << dims[1] << dims[2];
+    m_mapper->SetInputConnection(m_reader->GetOutputPort());
+    // m_mapper->AutoAdjustSampleDistancesOff();
+    // m_mapper->SetSampleDistance(0.5);
+    m_mapper->SetBlendModeToComposite();
+    // m_mapper->SetBlendModeToMaximumIntensity();
 
     m_opacityPiecewiseFunction->RemoveAllPoints();
     m_opacityPiecewiseFunction->AddPoint(range[0], 0.0); // water
@@ -76,19 +81,29 @@ void MainWindow::setupVtk()
     m_prop->ShadeOn();
     m_prop->SetInterpolationTypeToLinear();
 
-    m_mapper->SetInputConnection(m_reader->GetOutputPort());
-    m_mapper->SetAutoAdjustSampleDistances(1);
-
     m_volume->SetMapper(m_mapper);
     m_volume->SetProperty(m_prop);
 
+    // m_camera->SetViewUp(0, 0, -1);
+    // m_camera->SetPosition(0, -1, 0);
+    // m_camera->SetFocalPoint(0, 0, 0);
+
     m_renderer->AddVolume(m_volume);
+    m_renderer->SetActiveCamera(m_camera);
+    m_renderer->SetBackground(23.0 / 255.0, 146.0 / 255.0, 153.0 / 255.0);
+
+    // m_camera->Azimuth(90.0);
+    // m_camera->Elevation(30.0);
+    // m_camera->Dolly(1.5);
+    // m_renderer->ResetCameraClippingRange();
 
     m_renderWindow->AddRenderer(m_renderer);
+    m_renderWindow->SetWindowName("openglraycastmapper");
 
     m_vtkWidget->SetRenderWindow(m_renderWindow);
 
     m_renderer->ResetCamera();
+    // m_renderWindow->GetInteractor()->Initialize();
     // qDebug() << "GPU mode: " << (m_mapper->GetLastUsedRenderMode() == 0);
 }
 

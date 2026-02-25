@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QObject>
 #include "QVTKOpenGLNativeWidget.h"
+#include "vtkCamera.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkDICOMDirectory.h"
 #include "vtkDICOMReader.h"
@@ -42,15 +43,15 @@ private:
     vtkNew<vtkColorTransferFunction> m_colorTransferFunction;
     vtkNew<vtkVolumeProperty> m_prop;
     // vtkNew<vtkSmartVolumeMapper> m_mapper;
-    // vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
+    vtkNew<vtkFixedPointVolumeRayCastMapper> m_mapper;
     // vtkNew<vtkGPUVolumeRayCastMapper> m_mapper;
-    vtkNew<vtkOpenGLGPUVolumeRayCastMapper> m_mapper;
+    // vtkNew<vtkOpenGLGPUVolumeRayCastMapper> m_mapper;
     vtkNew<vtkVolume> m_volume;
     vtkNew<vtkRenderer> m_renderer;
     vtkNew<vtkGenericOpenGLRenderWindow> m_renderWindow;
     vtkNew<vtkRenderWindowInteractor> m_interactor;
     QVTKOpenGLNativeWidget *m_vtkWidget = nullptr;
-
+    vtkNew<vtkCamera> m_camera;
 };
 
 #endif // MAINWINDOW_H
